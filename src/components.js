@@ -57,12 +57,14 @@ Crafty.c('MonsterTypes', {
       NEWT: {
         name: 'newt',
         dmg: 1,
-        fightText: ['newt bites your hand', 'newt bites your leg']
+        fightText: ['newt bites your hand', 'newt bites your leg'],
+        color: 'rgb(100,100,0)'
       },
       JACKAL: {
         name: 'jackal',
         dmg: 2,
-        fightText: ['jackal rips you', 'jackal claws you']
+        fightText: ['jackal rips you', 'jackal claws you'],
+        color: 'rgb(100,0,100)'
       }
     };
   }
@@ -70,7 +72,9 @@ Crafty.c('MonsterTypes', {
 
 Crafty.c('Monster', {
   init: function () {
-    this.requires('Grid, Canvas, LivingThings').at(0,0);
+    this.requires('Color, Grid, Canvas, MonsterTypes, LivingThings')
+      .at(0,0)
+      .attr({w: 10, h: 10, z: 9999});
     this.setType('newt');
   },
 
@@ -81,12 +85,21 @@ Crafty.c('Monster', {
       this.monsterType = this.monsterAll[newtype.toUpperCase()];
       this.setName(this.monsterType.name);
       this.fightText = this.monsterType.fightText[Math.floor(Math.random()*(this.monsterType.fightText.length-1))];
+      this.color(this.monsterType.color);
       return this;
     }
   },
 
   move: function (floor) {
+    var dir = [
+      {x: this.at().x - 1, y: this.at().y},
+      {x: this.at().x, y: this.at().y - 1},
+      {x: this.at().x + 1, y: this.at().y},
+      {x: this.at().x, y: this.at().y + 1}
+    ];
 
+    var choice = dir[Math.floor(Math.random()*3)];
+    this.at(choice.x, choice.y);
   },
 
 });
@@ -268,6 +281,7 @@ Crafty.c('Tile', {
     this.requires('2D, Canvas, Color, Grid, Tween');
     this._setColor();
     this._sighted = false;
+    this._livingThing;
 
     this.bind('SaveData', function (data) {
       data.c = ['Tile', 'obj'];
@@ -294,14 +308,30 @@ Crafty.c('Tile', {
     }
   },
 
+  livingThing :function (thing) {
+    if (thing === undefined) {
+      return this._livingThing;
+    } else {
+      this._livingThing = thing;
+      return this;
+    }
+  },
+
   tweenLOS: function (inSight, val) {
     if (inSight) {
-      this.tween({alpha:val}, 10);
+      this.tween({alpha:val}, 20);
       this._sighted = true;
     } else if (this._sighted) {
-      this.tween({alpha: 0.5}, 5);
+      this.tween({alpha: Game.config.baseAlpha}, 5);
     } else {
-      this.tween({alpha: 0}, 10);
+      this.tween({alpha: 0}, 20);
+    }
+    if (this._livingThing) {
+      if (inSight) {
+        this._livingThing.attr({alpha: 1});
+      } else {
+        this._livingThing.attr({alpha: 0});
+      }
     }
     return this;
   },
@@ -337,7 +367,7 @@ Crafty.c('Tile', {
         this.color('rgb(100,100,100)');
         break;
       case floors.DOOR_CLOSED:
-        this.color('rgb(0,30,100)');
+        this.color('rgb(0,30,40)');
         break;
       case floors.DOOR_OPEN:
         this.color('rgb(0,0,255)');
@@ -538,6 +568,7 @@ Crafty.c('Menu', {
 // on a grid of tiles
 Crafty.c('Grid', {
   init: function () {
+    this.requires('2D');
     this.attr({
       w: Game.config.tile.width - 1,
       h: Game.config.tile.height - 1

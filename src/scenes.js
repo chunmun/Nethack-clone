@@ -10,6 +10,20 @@ function withinGameBound(x, y) {
           y >= 0 && y < Game.config.map.height);
 }
 
+function isRoomTile (tile) {
+  return (tile === Game.config.floor.HORT_WALL ||
+          tile === Game.config.floor.VERT_WALL ||
+          tile === Game.config.floor.TOP_RIGHT_CORNER ||
+          tile === Game.config.floor.TOP_LEFT_CORNER ||
+          tile === Game.config.floor.BOT_LEFT_CORNER ||
+          tile === Game.config.floor.BOT_RIGHT_CORNER ||
+          tile === Game.config.floor.DOOR_OPEN ||
+          // tile === Game.config.floor.DOOR_CLOSED ||
+          tile === Game.config.floor.ROOM ||
+          tile === Game.config.floor.STAIRCASE_UP ||
+          tile === Game.config.floor.STAIRCASE_DOWN);
+};
+
 /**
  * Loading Scene in the Game
  */
@@ -66,7 +80,6 @@ Crafty.scene('StartSplash', function() {
 
 // Introduction Scene
 Crafty.scene('Intro', function () {
-  var self = this;
   var input;
   var frameNum = 0;
   var frames = [
@@ -155,7 +168,7 @@ var connectDoors = function (floor) {
     frontier.push({x: curr.x-1, y: curr.y, parent:curr},
                   {x: curr.x+1, y: curr.y, parent:curr},
                   {x: curr.x, y: curr.y-1, parent:curr},
-                    {x: curr.x, y: curr.y+1, parent:curr});
+                  {x: curr.x, y: curr.y+1, parent:curr});
 
     while (!found && frontier.length !== 0) {
       curr = frontier.shift();
@@ -313,12 +326,25 @@ Crafty.scene('GameMain', function () {
   Crafty.background('rgb(0,0,0)');
   var gameFloor;
   var gameEntityFloor;
-  var monsters;
+  var monsters = [];
   var player = Crafty('Player, Persist');
   var items;
   var floors = Game.config.floor;
   var map = Game.config.map;
 
+  var passible = function (x, y) {
+    var pass = (withinGameBound(x, y) &&
+            (gameFloor[x][y] === floors.ROOM ||
+            gameFloor[x][y] === floors.ROAD ||
+            gameFloor[x][y] === floors.DOOR_OPEN ||
+            gameFloor[x][y] === floors.STAIRCASE_UP ||
+            gameFloor[x][y] === floors.STAIRCASE_DOWN));
+    if (gameEntityFloor && gameEntityFloor[x][y].livingThing()) {
+      return false;
+    } else {
+      return pass;
+    }
+  };
   var generateGameLevel = function () {
     var upPlaced = false;
     var downPlaced = false;
@@ -369,7 +395,6 @@ Crafty.scene('GameMain', function () {
 
     // Add in the connecting roads
     connectDoors(gameFloor);
-    spawnMonsters(gameFloor);
   }; // generateGameLevel
 
   var loadGameLevel = function () {
@@ -397,12 +422,20 @@ Crafty.scene('GameMain', function () {
     var possible = [];
     for (var i = 0; i < map.width; i++) {
       for (var j = 0; j < map.height; j++) {
-        if (floor[i][j] !== floors.IMPASSABLE) {
+        if (passible(i, j)) {
           possible.push({x: i, y: j});
         }
       }
     }
     possible = shuffle(possible);
+
+    for (var i = 0; i < Game.config.monster.maxLimit; i++) {
+      var monster = Crafty.e('Monster').at(possible[i].x, possible[i].y)
+        .attr({alpha: 0});
+      monsters.push(monster);
+      gameEntityFloor[possible[i].x][possible[i].y].livingThing(monster);
+    }
+
   }; // spawnMonsters
 
   var reloadGame = function (data) {
@@ -460,15 +493,18 @@ Crafty.scene('GameMain', function () {
     if (!found) {
       generateGameLevel();
       loadGameLevel();
+      spawnMonsters(gameFloor);
       player.attr({alpha:1});
       updateVisibility();
     }
   });
 
   var updateVisibility = function () {
+    // Visibility of the monsters are calculated based on the floor
     var floors = Game.config.floor;
     var visibleRange = Game.config.player.visibleRange;
     var lighted = [];
+    var playerInRoom = isRoomTile(gameFloor[player.at().x][player.at().y]);
 
     for (var i = 0; i < visibleRange * 2 + 1; i++) {
       lighted[i] = [];
@@ -492,11 +528,15 @@ Crafty.scene('GameMain', function () {
 
       var currX = x + deltaX;
       var currY = y + deltaY;
+      var relX = player.at().x - visibleRange + currX;
+      var relY = player.at().y - visibleRange + currY;
 
-      var currFloor = gameFloor[player.at().x - visibleRange + currX][player.at().y - visibleRange + currY];
+      var currFloor = gameFloor[relX][relY];
       var parentFloor = gameFloor[player.at().x - visibleRange + x][player.at().y - visibleRange + y];
 
-      if (!withinGameBound(currX, currY)) {
+      if (!withinGameBound(relX, relY) ||
+          (currX < 0 || currX >= visibleRange * 2 + 1 ||
+           currY < 0 || currY >= visibleRange * 2 + 1)) { // this check is needed for small rooms
         return;
       }
 
@@ -517,16 +557,13 @@ Crafty.scene('GameMain', function () {
             beam(currX, currY, deltaY, -deltaX, stepLeft - 1, false);
           }
         }
-      } else {
-        lighted[currX][currY] = -1;
       }
-
     }
 
     for (var i = 0; i < visibleRange * 2 + 1; i++) {
       for (var j = 0; j < visibleRange * 2 + 1; j++) {
-        var relX = player.at().x - visibleRange + i;
-        var relY = player.at().y - visibleRange + j;
+        relX = player.at().x - visibleRange + i;
+        relY = player.at().y - visibleRange + j;
         if (!withinGameBound(relX, relY)) continue;
         if (lighted[i][j] > 0) {
           gameEntityFloor[relX][relY]
@@ -537,28 +574,15 @@ Crafty.scene('GameMain', function () {
       }
     }
 
+
     function validParent (parent, child) {
       // Open-door can be parent for any child
       // Closed-door cannot be parent for any child
       // RoomTiles can light up any other room tiles
       // For all others, just check for same types
-      var isRoomTile = function (tile) {
-        return (tile === floors.HORT_WALL ||
-                tile === floors.VERT_WALL ||
-                tile === floors.TOP_RIGHT_CORNER ||
-                tile === floors.TOP_LEFT_CORNER ||
-                tile === floors.BOT_LEFT_CORNER ||
-                tile === floors.BOT_RIGHT_CORNER ||
-                tile === floors.CLOSED_DOOR ||
-                tile === floors.ROOM ||
-                tile === floors.STAIRCASE_UP ||
-                tile === floors.STAIRCASE_DOWN);
-      };
-
       if (isRoomTile(parent)) {
-        return (isRoomTile(child) ||
-                child === floors.DOOR_OPEN ||
-                child === floors.DOOR_CLOSED) ? true : false;
+        return (isRoomTile(child) || child === floors.DOOR_CLOSED
+          ? true : false);
       }
 
       switch (parent) {
@@ -583,16 +607,6 @@ Crafty.scene('GameMain', function () {
     }
   }; // updateVisibility
 
-
-  var passible = function (x, y) {
-    console.log('passible called for '+x+','+y);
-    return (withinGameBound(x, y) &&
-            (gameFloor[x][y] === floors.ROOM ||
-            gameFloor[x][y] === floors.ROAD ||
-            gameFloor[x][y] === floors.DOOR_OPEN ||
-            gameFloor[x][y] === floors.STAIRCASE_UP ||
-            gameFloor[x][y] === floors.STAIRCASE_DOWN));
-  };
 
   var lastKey = Crafty.keys.ESC;
   console.log(player);

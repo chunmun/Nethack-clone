@@ -45,7 +45,13 @@ Game.config = (function() {
 
     player: {
       visibleRange: 5
-    }
+    },
+
+    monster: {
+      maxLimit: 10
+    },
+
+    baseAlpha: 0.2
   };
 
   config.canvasWidth = (config.map.width +
