@@ -5,17 +5,46 @@ Crafty.c('LivingThings', {
   init: function (){
     this.hp = 0;
     this.damage = 0;
-    this.name = 'LivingThing';
+    this._name = 'LivingThing';
+    this.fightText = 'It does nothing';
   },
 
   // Only elements that has this component can fight each other
   fight: function (other) {
     if (!other.__c['LivingThings']) {
+      Crafty.trigger('MainText', this.name + ' cannot fight');
       return this;
     }
+    Crafty.trigger('MainText', this.fightText);
     other.hp -= this.damage;
     return this;
+  },
+
+  setName: function (newname) {
+    if (newname === undefined) {
+      return this._name;
+    } else {
+      this._name = newname;
+      return this;
+    }
+  },
+
+  // Locate this entity at the given position on the grid
+  at: function (x, y) {
+    if (x === undefined && y === undefined) {
+      return {
+        x: (this._x - 3) / Game.config.tile.width - Game.config.padding.left,
+        y: (this._y - 3) / Game.config.tile.height - Game.config.padding.top
+      };
+    } else {
+      this.attr({
+        x: (x + Game.config.padding.left) * Game.config.tile.width + 3,
+        y: (y + Game.config.padding.top) * Game.config.tile.height + 3
+      });
+      return this;
+    }
   }
+
 });
 
 
@@ -25,16 +54,39 @@ Crafty.c('LivingThings', {
 Crafty.c('MonsterTypes', {
   init: function () {
     this.monsterAll = {
-      NEWT: {name: 'newt'},
-      JACKAL: {name: 'jackal'}
+      NEWT: {
+        name: 'newt',
+        dmg: 1,
+        fightText: ['newt bites your hand', 'newt bites your leg']
+      },
+      JACKAL: {
+        name: 'jackal',
+        dmg: 2,
+        fightText: ['jackal rips you', 'jackal claws you']
+      }
     };
   }
 });
 
 Crafty.c('Monster', {
   init: function () {
-    this.requires('LivingThings');
-    this.type = this.monsterAll.NEWT;
+    this.requires('Grid, Canvas, LivingThings').at(0,0);
+    this.setType('newt');
+  },
+
+  setType: function (newtype) {
+    if (newtype === undefined) {
+      return this.monsterType;
+    } else {
+      this.monsterType = this.monsterAll[newtype.toUpperCase()];
+      this.setName(this.monsterType.name);
+      this.fightText = this.monsterType.fightText[Math.floor(Math.random()*(this.monsterType.fightText.length-1))];
+      return this;
+    }
+  },
+
+  move: function (floor) {
+
   },
 
 });
@@ -127,7 +179,7 @@ Crafty.c('PlayerStats', {
 
 Crafty.c('Player', {
   init: function () {
-    this.requires('2D, Canvas, Color, PlayerAttributes, LivingThings, PlayerStats')
+    this.requires('2D, Canvas, Color, PlayerAttributes, LivingThings, Persist, PlayerStats')
         .attr({
           x: 10,
           y: 10,
@@ -136,7 +188,7 @@ Crafty.c('Player', {
           z: 9999999
         })
         .color('rgb(255,0,0)');
-    this.name = 'Chunmun';
+    this.setName('Chunmun');
     this.role = this.roleAll.ARCHEOLOGIST;
     this.race = this.raceAll.HUMAN;
     this.gender = this.genderAll.MALE;
@@ -160,7 +212,7 @@ Crafty.c('Player', {
 
     this.bind('SaveData', function (data) {
       data.c = ['Player', 'obj'];
-      data.name = this.name;
+      data._name = this._name;
       data.role = this.role;
       data.race = this.race;
       data.gender = this.gender;
@@ -170,7 +222,7 @@ Crafty.c('Player', {
       data.at = this.at();
     })
     .bind('LoadData', function (data) {
-      this.name = data.name;
+      this._name = data._name;
       this.role = data.role;
       this.race = data.race;
       this.gender = data.gender;
@@ -180,32 +232,8 @@ Crafty.c('Player', {
       this.at(data.at.x,data.at.y);
       this._globalZ = 99999;
     });
-  },
-
-  setName: function (newname) {
-    if (newname === undefined) {
-      return this.name;
-    } else {
-      this.name = newname;
-      return this;
-    }
-  },
-
-  // Locate this entity at the given position on the grid
-  at: function (x, y) {
-    if (x === undefined && y === undefined) {
-      return {
-        x: (this._x - 3) / Game.config.tile.width - Game.config.padding.left,
-        y: (this._y - 3) / Game.config.tile.height - Game.config.padding.top
-      };
-    } else {
-      this.attr({
-        x: (x + Game.config.padding.left) * Game.config.tile.width + 3,
-        y: (y + Game.config.padding.top) * Game.config.tile.height + 3
-      });
-      return this;
-    }
   }
+
 });
 
 
@@ -309,7 +337,7 @@ Crafty.c('Tile', {
         this.color('rgb(100,100,100)');
         break;
       case floors.DOOR_CLOSED:
-        this.color('rgb(0,0,25)');
+        this.color('rgb(0,30,100)');
         break;
       case floors.DOOR_OPEN:
         this.color('rgb(0,0,255)');

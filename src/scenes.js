@@ -1,4 +1,3 @@
-var player = {};
 
 // Shuffle the doors
 function shuffle(o){
@@ -27,6 +26,7 @@ Crafty.scene('Loading', function() {
   // Crafty.load(assets, function() {
   //   console.log('Game Assets Loaded');
   // });
+  Crafty.e('Player, Persist').attr({alpha:0});
   Crafty.scene('StartSplash');
 }, function() {
 
@@ -66,11 +66,12 @@ Crafty.scene('StartSplash', function() {
 
 // Introduction Scene
 Crafty.scene('Intro', function () {
+  var self = this;
   var input;
   var frameNum = 0;
   var frames = [
-    {text: 'What is your name ?', next:1, wordfun: function (word) {
-      player.name = word;
+    {text: 'What is your name ?', next:1, wordFun: function (word) {
+      Crafty('Player, Persist').setName(word);
     }}
   ];
 
@@ -93,7 +94,7 @@ Crafty.scene('Intro', function () {
   Crafty.e('Textfield')
         .attr({
           x: Game.config.canvasWidth / 3,
-          y: Game.config.canvasHeight * 2 / 3,
+          y: Game.config.canvasHeight / 3 + 25,
           w: 10,
           h: 10
         })
@@ -313,10 +314,8 @@ Crafty.scene('GameMain', function () {
   var gameFloor;
   var gameEntityFloor;
   var monsters;
+  var player = Crafty('Player, Persist');
   var items;
-  var playerName = player.name;
-  player = Crafty.e('Player').attr({alpha:0});
-  player.setName(playerName);
   var floors = Game.config.floor;
   var map = Game.config.map;
 
@@ -435,9 +434,9 @@ Crafty.scene('GameMain', function () {
   }; // reloadGame
 
   var loadGame = function (cb) {
-    Crafty.storage.load(player.name+'gameFloor','save',function (data) {
+    Crafty.storage.load(player._name+'gameFloor','save',function (data) {
       reloadGame(data);
-      Crafty.storage.load(player.name,'save',function(p) {
+      Crafty.storage.load(player._name,'save',function(p) {
         player.destroy();
         player = p;
         updateVisibility();
@@ -449,7 +448,7 @@ Crafty.scene('GameMain', function () {
   Crafty.storage.getAllKeys('save', function (keys) {
     var found = false;
     for (var i = 0; i < keys.length; i++) {
-      if (keys[i] === player.name) {
+      if (keys[i] === player._name) {
         loadGame(function () {
           player.attr({alpha: 1});
           updateVisibility();
@@ -505,7 +504,7 @@ Crafty.scene('GameMain', function () {
         if (lighted[currX][currY] === 0) {
           lighted[currX][currY] = lighted[x][y] - 1;
         } else {
-          lighted[currX][currY] = Math.max(lighted[currX][currY], lighted[x][y]);
+          lighted[currX][currY] = Math.max(lighted[currX][currY], lighted[x][y] - 1);
         }
 
         beam(currX,currY,deltaX,deltaY,stepLeft - 1, beamTangent);
@@ -537,43 +536,6 @@ Crafty.scene('GameMain', function () {
         }
       }
     }
-
-
-    // while (frontier.length > 0) {
-    //   curr = frontier.shift();
-
-    //   var withinSight = curr.dist < Game.config.player.visibleRange;
-    //   var withinUpdateSight = curr.dist < Game.config.player.visibleRange + 2;
-    //   var isExplored = isIn(curr,explored);
-    //   var goodParent = validParent( gameFloor[curr.x][curr.y]);
-    //   var setToVisible = function () {
-    //     gameEntityFloor[curr.x][curr.y].tweenLOS(true, 0.5 + 1.0/curr.dist * 0.5);
-    //   };
-    //   var setToInvisible = function () {
-    //     gameEntityFloor[curr.x][curr.y].tweenLOS(false);
-    //   };
-
-    //   if (isExplored) continue;
-    //   if (!withinGameBounds || !withinUpdateSight) continue;
-    //   if (goodParent && withinGameBounds && withinSight) setToVisible();
-    //   if (!goodParent) setToInvisible();
-
-    //   // we overextend a little to update those pieces outside to be invisible
-    //   if (curr.dist < Game.config.player.visibleRange+2) {
-    //     // Push all children into frontier
-    //     for (var i = -1; i < 2; i +=2) {
-    //       for (var j = -1; j < 2; j += 2) {
-    //         frontier.push({
-    //           x: curr.x + i,
-    //           y: curr.y + j,
-    //           parentType: gameFloor[curr.x][curr.y],
-    //           dist: curr.dist + 1
-    //         });
-    //       }
-    //     }
-    //   }
-    //   explored.push(curr);
-    // }
 
     function validParent (parent, child) {
       // Open-door can be parent for any child
@@ -623,13 +585,13 @@ Crafty.scene('GameMain', function () {
 
 
   var passible = function (x, y) {
-    return (x >= 0 && x < map.width &&
-            y >= 0 && y < map.height) &&
+    console.log('passible called for '+x+','+y);
+    return (withinGameBound(x, y) &&
             (gameFloor[x][y] === floors.ROOM ||
             gameFloor[x][y] === floors.ROAD ||
             gameFloor[x][y] === floors.DOOR_OPEN ||
             gameFloor[x][y] === floors.STAIRCASE_UP ||
-            gameFloor[x][y] === floors.STAIRCASE_DOWN);
+            gameFloor[x][y] === floors.STAIRCASE_DOWN));
   };
 
   var lastKey = Crafty.keys.ESC;
@@ -640,7 +602,7 @@ Crafty.scene('GameMain', function () {
     switch (e.keyCode) {
       case Crafty.keys.UP_ARROW:
         if (lastKey === Crafty.keys.ESC &&
-          passible(player.at().x,player.at().y - 1)) {
+          passible(player.at().x,player.at().y-1)) {
           player.at(player.at().x,player.at().y-1);
         } else if (lastKey === Crafty.keys.K) {
           if (gameFloor[player.at().x][player.at().y-1] === floors.DOOR_CLOSED) {
@@ -655,7 +617,7 @@ Crafty.scene('GameMain', function () {
       break;
       case Crafty.keys.DOWN_ARROW:
         if (lastKey === Crafty.keys.ESC &&
-          passible(player.at().x,player.at().y + 1)) {
+          passible(player.at().x,player.at().y+1)) {
           player.at(player.at().x,player.at().y+1);
         } else if (lastKey === Crafty.keys.K) {
           if (gameFloor[player.at().x][player.at().y+1] === floors.DOOR_CLOSED) {
@@ -670,7 +632,7 @@ Crafty.scene('GameMain', function () {
       break;
       case Crafty.keys.LEFT_ARROW:
         if (lastKey === Crafty.keys.ESC &&
-          passible(player.at().x - 1,player.at().y)) {
+          passible(player.at().x-1,player.at().y)) {
           player.at(player.at().x-1,player.at().y);
         } else if (lastKey === Crafty.keys.K) {
           if (gameFloor[player.at().x-1][player.at().y] === floors.DOOR_CLOSED) {
@@ -684,7 +646,7 @@ Crafty.scene('GameMain', function () {
         updateVisibility();
       break;
       case Crafty.keys.RIGHT_ARROW:
-        if (passible(player.at().x + 1,player.at().y)) {
+        if (passible(player.at().x+1,player.at().y)) {
           player.at(player.at().x+1,player.at().y);
         } else if (lastKey === Crafty.keys.K) {
           if (gameFloor[player.at().x+1][player.at().y] === floors.DOOR_CLOSED) {
@@ -757,9 +719,9 @@ Crafty.scene('GameMain', function () {
               }
             }
           }
-          Crafty.storage.save(player.name+'gameFloor','save',gameFloorMod);
-          Crafty.storage.save(player.name,'save',player);
-          console.log('Saved to '+player.name);
+          Crafty.storage.save(player._name+'gameFloor','save',gameFloorMod);
+          Crafty.storage.save(player._name,'save',player);
+          console.log('Saved to '+player._name);
         }
       break;
       case Crafty.keys.L:
