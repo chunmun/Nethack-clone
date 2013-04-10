@@ -1,3 +1,15 @@
+var player = {};
+
+// Shuffle the doors
+function shuffle(o){
+  for(var j, x, i = o.length; i; j = parseInt(Math.random() * i), x = o[--i], o[i] = o[j], o[j] = x);
+  return o;
+};
+
+function withinGameBound(x, y) {
+  return (x >= 0 && x < Game.config.map.width &&
+          y >= 0 && y < Game.config.map.height);
+}
 
 /**
  * Loading Scene in the Game
@@ -28,6 +40,7 @@ Crafty.scene('Loading', function() {
 
 var blackFun;
 Crafty.scene('StartSplash', function() {
+  Crafty.background('rgb(0,0,0)');
   var StartText = Crafty.e("2D, Canvas, Text")
       .attr({
         w: 100,
@@ -37,7 +50,7 @@ Crafty.scene('StartSplash', function() {
         z: 2
       })
       .text('Press any key to start game')
-      .textColor('rgb(0,0,0)')
+      .textColor('#FFFFFF')
       .textFont({'size' : '24px', 'family': 'Arial'});
 
   var blackout = Crafty.e('Blackout');
@@ -51,6 +64,68 @@ Crafty.scene('StartSplash', function() {
 });
 
 
+// Introduction Scene
+Crafty.scene('Intro', function () {
+  var input;
+  var frameNum = 0;
+  var frames = [
+    {text: 'What is your name ?', next:1, wordfun: function (word) {
+      player.name = word;
+    }}
+  ];
+
+  Crafty.e('Textfield')
+      .attr({
+        x: Game.config.canvasWidth / 3,
+        y: Game.config.canvasHeight / 3,
+        w: 10,
+        h: 10
+      })
+      .setMode(false)
+      .bind('ChangeFrame', function () {
+        if (frameNum >= frames.length) {
+          Crafty.scene('GameMain');
+        } else {
+          this.setWord(frames[frameNum].text);
+        }
+      });
+
+  Crafty.e('Textfield')
+        .attr({
+          x: Game.config.canvasWidth / 3,
+          y: Game.config.canvasHeight * 2 / 3,
+          w: 10,
+          h: 10
+        })
+        .setMode(true)
+        .bind('KeyDown', function (e) {
+          if (e.keyCode === Crafty.keys.ENTER) {
+            input = this.getWord();
+            if (frames[frameNum].wordFun) {
+              frames[frameNum].wordFun(input);
+            }
+            frameNum = frames[frameNum].next;
+            Crafty.trigger('ChangeFrame', frameNum);
+          }
+        });
+
+  Crafty.trigger('ChangeFrame');
+
+}, function () {
+
+});
+
+
+
+
+function isIn(pos, arr) {
+  for (var i = 0; i < arr.length; i++) {
+    if (pos.x === arr[i].x && pos.y === arr[i].y) {
+      return true;
+    }
+  }
+  return false;
+}
 
 var connectDoors = function (floor) {
   var floors = Game.config.floor;
@@ -67,11 +142,6 @@ var connectDoors = function (floor) {
     }
   }
 
-  // Shuffle the doors
-  function shuffle(o){
-    for(var j, x, i = o.length; i; j = parseInt(Math.random() * i), x = o[--i], o[i] = o[j], o[j] = x);
-    return o;
-  };
   doors = shuffle(doors);
 
   // Do simple BFS search towards the next door and pave
@@ -93,12 +163,15 @@ var connectDoors = function (floor) {
         found = true;
         break;
       }
+
       if (!isIn(curr, explored) &&
           curr.x >= 0 && curr.x < Game.config.map.width &&
           curr.y >= 0 && curr.y < Game.config.map.height &&
           (floor[curr.x][curr.y] === floors.IMPASSABLE ||
            floor[curr.x][curr.y] === floors.ROAD)) {
+
         explored.push(curr);
+
         var choices = prioritise([{x: curr.x-1, y: curr.y, parent:curr},
                       {x: curr.x+1, y: curr.y, parent:curr},
                       {x: curr.x, y: curr.y-1, parent:curr},
@@ -129,33 +202,29 @@ var connectDoors = function (floor) {
           arr[0] = temp;
         }
       }
+      arr = shuffle(arr);
       return arr;
     }
 
-    function isIn(pos, arr) {
-      for (var i = 0; i < arr.length; i++) {
-        if (curr.x === arr[i].x && curr.y === arr[i].y) {
-          return true;
-        }
-      }
-      return false;
-    }
+
   }
 
   for(i = 0; i < doors.length-1; i++) {
     BFSPaving(doors[i], doors[i+1]);
   }
-}
+} // Connect Doors
 
 var placeRoom = function (floor, room) {
   var floors = Game.config.floor;
   var i, j;
 
   // Do an initial scan, if intersect with another room
-  // abandon with 0.8 prob
-  for (i = room.x; i < room.x+room.w; i++) {
-    for (j = room.y; j < room.y+room.h; j++) {
-      if (floor[i][j] !== floors.IMPASSABLE) {
+  // abandon if there's an intersection
+  // The room coordinates are supposed to be within bounds
+  // but I check one square more so the room don't stick together
+  for (i = room.x-1; i < room.x+room.w+1; i++) {
+    for (j = room.y-1; j < room.y+room.h+1; j++) {
+      if (floor[i][j] && floor[i][j] !== floors.IMPASSABLE) {
         return 0;
       }
     }
@@ -167,6 +236,7 @@ var placeRoom = function (floor, room) {
   var doorRight = false;
   var doorBot = false;
 
+  // Really put in the floor pieces now
   for (i = room.x; i < room.x+room.w; i++) {
     for (j = room.y; j < room.y+room.h; j++) {
       var atTop = j === room.y;
@@ -188,71 +258,49 @@ var placeRoom = function (floor, room) {
         } else if (atLeft) {
           floor[i][j] = floors.TOP_LEFT_CORNER;
         } else {
-          if (!doorTop && inExistingRoom && !inExistingCorner) {
-            floor[i][j] = floors.DOOR_CLOSED;
-            doorTop = true;
-          } else {
-            floor[i][j] = floors.HORT_WALL;
-          }
+          floor[i][j] = floors.HORT_WALL;
         }
-        count++;
       } else if (atBot) {
         if (atRight) {
           floor[i][j] = floors.BOT_RIGHT_CORNER;
         } else if (atLeft) {
           floor[i][j] = floors.BOT_LEFT_CORNER;
         } else {
-          if (!doorBot && inExistingRoom && !inExistingCorner) {
-            floor[i][j] = floors.DOOR_CLOSED;
-            doorBot = true;
-          } else {
-            floor[i][j] = floors.HORT_WALL;
-          }
+          floor[i][j] = floors.HORT_WALL;
         }
-        count++;
       } else {
         if (atRight) {
-          if (!doorRight && inExistingRoom && !inExistingCorner) {
-            floor[i][j] = floors.DOOR_CLOSED;
-            doorRight = true;
-          } else {
-            floor[i][j] = floors.VERT_WALL;
-          }
+          floor[i][j] = floors.VERT_WALL;
         } else if (atLeft) {
-          if (!doorLeft && inExistingRoom && !inExistingCorner) {
-            floor[i][j] = floors.DOOR_CLOSED;
-            doorLeft = true;
-          } else {
-            floor[i][j] = floors.VERT_WALL;
-          }
+          floor[i][j] = floors.VERT_WALL;
         } else {
           floor[i][j] = floors.ROOM;
         }
-        count++;
       }
+      count++;
     }
   }
-
-  var noDoors = !doorTop && !doorLeft && !doorRight && !doorBot;
-  while (noDoors) {
+  var maxDr = Game.config.room.maxDoors;
+  var minDr = Game.config.room.minDoors;
+  for(var doorsLeft = Math.floor(Math.sqrt(Math.random()) * maxDr - minDr) + minDr;
+    doorsLeft > 0; doorsLeft--) {
     var ranNum = Math.random();
     if (ranNum <= 0.25) { // Top wall has a door
-      floor[room.x + 1 + Math.floor(Math.random() * (room.w - 2))][room.y] = floors.DOOR_CLOSED;
-      doorTop = true;
+      floor[room.x + 1 + Math.floor(Math.random() * (room.w - 2))]
+           [room.y] = floors.DOOR_CLOSED;
     } else if (ranNum <= 0.5) { // Bot wall has a door
-      floor[room.x + 1 + Math.floor(Math.random() * (room.w - 2))][room.y + room.h - 1] = floors.DOOR_CLOSED;
-      doorBot = true;
+      floor[room.x + 1 + Math.floor(Math.random() * (room.w - 2))]
+           [room.y + room.h - 1] = floors.DOOR_CLOSED;
     } else if (ranNum <= 0.75) { // Left wall has a door
-      floor[room.x][room.y + 1 + Math.floor(Math.random() * (room.h - 2))] = floors.DOOR_CLOSED;
-      doorLeft = true;
+      floor[room.x]
+           [room.y + 1 + Math.floor(Math.random() * (room.h - 2))] = floors.DOOR_CLOSED;
     } else { // Right wall has a door
-      floor[room.x + room.w - 1][room.y + 1 + Math.floor(Math.random() * (room.h - 2))] = floors.DOOR_CLOSED;
-      doorRight = true;
+      floor[room.x + room.w - 1]
+           [room.y + 1 + Math.floor(Math.random() * (room.h - 2))] = floors.DOOR_CLOSED;
     }
-    noDoors = !doorTop && !doorLeft && !doorRight && !doorBot;
   }
   return count;
-};
+}; // placeRoom
 
 /**
  * The main game
@@ -266,11 +314,13 @@ Crafty.scene('GameMain', function () {
   var gameEntityFloor;
   var monsters;
   var items;
-  var player = Crafty.e('Player');
+  var playerName = player.name;
+  player = Crafty.e('Player').attr({alpha:0});
+  player.setName(playerName);
   var floors = Game.config.floor;
   var map = Game.config.map;
 
-  (function generateGameLevel () {
+  var generateGameLevel = function () {
     var upPlaced = false;
     var downPlaced = false;
 
@@ -283,14 +333,21 @@ Crafty.scene('GameMain', function () {
           gameFloor[i][j] = Game.config.floor.IMPASSABLE;
         }
       }
+    } else {
+      for (var i = 0; i < map.width; i++) {
+        for(var j = 0; j < map.height; j++) {
+          gameFloor[i][j] = Game.config.floor.IMPASSABLE;
+        }
+      }
     }
+
     // Add in the rooms
     var floorsAdded = 0;
     var target = map.width *
                  map.height *
                  map.coverage;
     while (floorsAdded < target) {
-      // Place a room
+      // Place a room and its doors
       var _h = Math.floor(Math.random()*(Game.config.room.maxHeight-Game.config.room.minHeight)+Game.config.room.minHeight);
       var _w = Math.floor(Math.random()*(Game.config.room.maxWidth-Game.config.room.minWidth)+Game.config.room.minWidth);
       var _x = 1+Math.floor(Math.random()*(map.width-_w-2));
@@ -313,19 +370,257 @@ Crafty.scene('GameMain', function () {
 
     // Add in the connecting roads
     connectDoors(gameFloor);
-  })();
+    spawnMonsters(gameFloor);
+  }; // generateGameLevel
 
-  (function loadGameLevel () {
+  var loadGameLevel = function () {
+    if (gameEntityFloor && gameEntityFloor[0][0] && typeof gameEntityFloor[0][0] === 'object'){
+      for (var i = 0; i < Game.config.map.width; i++) {
+        for(var j = 0; j < Game.config.map.height; j++) {
+          gameEntityFloor[i][j].destroy();
+        }
+      }
+    }
+
     gameEntityFloor = [];
     for (var i = 0; i < Game.config.map.width; i++) {
       gameEntityFloor[i] = [];
       for(var j = 0; j < Game.config.map.height; j++) {
         gameEntityFloor[i][j] = Crafty.e('Tile')
+                                  .attr({alpha:0})
                                   .at(i,j)
                                   .tileType(gameFloor[i][j]);
       }
     }
-  })();
+  }; //loadGameLevel
+
+  var spawnMonsters = function(floor) {
+    var possible = [];
+    for (var i = 0; i < map.width; i++) {
+      for (var j = 0; j < map.height; j++) {
+        if (floor[i][j] !== floors.IMPASSABLE) {
+          possible.push({x: i, y: j});
+        }
+      }
+    }
+    possible = shuffle(possible);
+  }; // spawnMonsters
+
+  var reloadGame = function (data) {
+    gameEntityFloor = gameEntityFloor || [];
+    gameFloor = gameFloor || [];
+    for (var i = 0; i < map.width; i++) {
+      gameEntityFloor[i] = gameEntityFloor[i] || [];
+      gameFloor[i] = gameFloor[i] || [];
+      for (var j = 0; j < map.height; j++) {
+        gameEntityFloor[i][j] = gameEntityFloor[i][j] || {};
+        gameFloor[i][j] = gameFloor[i][j] || floors.IMPASSABLE;
+        var type = data[i][j];
+        var sighted = false;
+        if (type > 900) {
+          type -= 999;
+          sighted = true;
+        }
+        if (typeof gameEntityFloor[i][j].destroy === 'function') {
+          gameEntityFloor[i][j].destroy();
+        }
+        gameEntityFloor[i][j] = Crafty.e('Tile')
+                                      .at(i,j)
+                                      .tileType(type);
+        gameEntityFloor[i][j]._sighted = sighted;
+        gameEntityFloor[i][j].attr({alpha:0}).tweenLOS(false);
+        gameFloor[i][j] = type;
+      }
+    }
+  }; // reloadGame
+
+  var loadGame = function (cb) {
+    Crafty.storage.load(player.name+'gameFloor','save',function (data) {
+      reloadGame(data);
+      Crafty.storage.load(player.name,'save',function(p) {
+        player.destroy();
+        player = p;
+        updateVisibility();
+        cb();
+      });
+    });
+  };
+
+  Crafty.storage.getAllKeys('save', function (keys) {
+    var found = false;
+    for (var i = 0; i < keys.length; i++) {
+      if (keys[i] === player.name) {
+        loadGame(function () {
+          player.attr({alpha: 1});
+          updateVisibility();
+        });
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      generateGameLevel();
+      loadGameLevel();
+      player.attr({alpha:1});
+      updateVisibility();
+    }
+  });
+
+  var updateVisibility = function () {
+    var floors = Game.config.floor;
+    var visibleRange = Game.config.player.visibleRange;
+    var lighted = [];
+
+    for (var i = 0; i < visibleRange * 2 + 1; i++) {
+      lighted[i] = [];
+      for (var j = 0; j < visibleRange * 2 + 1; j++) {
+        lighted[i][j] = 0;
+      }
+    }
+
+    lighted[visibleRange][visibleRange] = visibleRange;
+
+    // Shoot a light beam at all 4 directions
+    beam(visibleRange, visibleRange, -1, 0, visibleRange, true);
+    beam(visibleRange, visibleRange, 0, -1, visibleRange, true);
+    beam(visibleRange, visibleRange, 1, 0, visibleRange, true);
+    beam(visibleRange, visibleRange, 0, 1, visibleRange, true);
+
+    function beam (x, y, deltaX, deltaY, stepLeft, beamTangent) {
+      if (stepLeft <= 0) {
+        return;
+      }
+
+      var currX = x + deltaX;
+      var currY = y + deltaY;
+
+      var currFloor = gameFloor[player.at().x - visibleRange + currX][player.at().y - visibleRange + currY];
+      var parentFloor = gameFloor[player.at().x - visibleRange + x][player.at().y - visibleRange + y];
+
+      if (!withinGameBound(currX, currY)) {
+        return;
+      }
+
+      if (validParent(parentFloor, currFloor)) {
+        if (lighted[currX][currY] === 0) {
+          lighted[currX][currY] = lighted[x][y] - 1;
+        } else {
+          lighted[currX][currY] = Math.max(lighted[currX][currY], lighted[x][y]);
+        }
+
+        beam(currX,currY,deltaX,deltaY,stepLeft - 1, beamTangent);
+
+        if (beamTangent) {
+          beam(currX, currY, deltaY, deltaX, stepLeft - 1, false);
+          if (deltaY !== 0) {
+            beam(currX, currY, -deltaY, deltaX, stepLeft - 1, false);
+          } else {
+            beam(currX, currY, deltaY, -deltaX, stepLeft - 1, false);
+          }
+        }
+      } else {
+        lighted[currX][currY] = -1;
+      }
+
+    }
+
+    for (var i = 0; i < visibleRange * 2 + 1; i++) {
+      for (var j = 0; j < visibleRange * 2 + 1; j++) {
+        var relX = player.at().x - visibleRange + i;
+        var relY = player.at().y - visibleRange + j;
+        if (!withinGameBound(relX, relY)) continue;
+        if (lighted[i][j] > 0) {
+          gameEntityFloor[relX][relY]
+          .tweenLOS(true, lighted[i][j] / (visibleRange * 2) + 0.5);
+        } else {
+          gameEntityFloor[relX][relY].tweenLOS(false);
+        }
+      }
+    }
+
+
+    // while (frontier.length > 0) {
+    //   curr = frontier.shift();
+
+    //   var withinSight = curr.dist < Game.config.player.visibleRange;
+    //   var withinUpdateSight = curr.dist < Game.config.player.visibleRange + 2;
+    //   var isExplored = isIn(curr,explored);
+    //   var goodParent = validParent( gameFloor[curr.x][curr.y]);
+    //   var setToVisible = function () {
+    //     gameEntityFloor[curr.x][curr.y].tweenLOS(true, 0.5 + 1.0/curr.dist * 0.5);
+    //   };
+    //   var setToInvisible = function () {
+    //     gameEntityFloor[curr.x][curr.y].tweenLOS(false);
+    //   };
+
+    //   if (isExplored) continue;
+    //   if (!withinGameBounds || !withinUpdateSight) continue;
+    //   if (goodParent && withinGameBounds && withinSight) setToVisible();
+    //   if (!goodParent) setToInvisible();
+
+    //   // we overextend a little to update those pieces outside to be invisible
+    //   if (curr.dist < Game.config.player.visibleRange+2) {
+    //     // Push all children into frontier
+    //     for (var i = -1; i < 2; i +=2) {
+    //       for (var j = -1; j < 2; j += 2) {
+    //         frontier.push({
+    //           x: curr.x + i,
+    //           y: curr.y + j,
+    //           parentType: gameFloor[curr.x][curr.y],
+    //           dist: curr.dist + 1
+    //         });
+    //       }
+    //     }
+    //   }
+    //   explored.push(curr);
+    // }
+
+    function validParent (parent, child) {
+      // Open-door can be parent for any child
+      // Closed-door cannot be parent for any child
+      // RoomTiles can light up any other room tiles
+      // For all others, just check for same types
+      var isRoomTile = function (tile) {
+        return (tile === floors.HORT_WALL ||
+                tile === floors.VERT_WALL ||
+                tile === floors.TOP_RIGHT_CORNER ||
+                tile === floors.TOP_LEFT_CORNER ||
+                tile === floors.BOT_LEFT_CORNER ||
+                tile === floors.BOT_RIGHT_CORNER ||
+                tile === floors.CLOSED_DOOR ||
+                tile === floors.ROOM ||
+                tile === floors.STAIRCASE_UP ||
+                tile === floors.STAIRCASE_DOWN);
+      };
+
+      if (isRoomTile(parent)) {
+        return (isRoomTile(child) ||
+                child === floors.DOOR_OPEN ||
+                child === floors.DOOR_CLOSED) ? true : false;
+      }
+
+      switch (parent) {
+        case floors.DOOR_OPEN:
+          return true;
+        case floors.IMPASSABLE:
+        case floors.DOOR_CLOSED:
+          return false;
+        case floors.ROAD:
+          if (child === floors.ROAD ||
+              child === floors.DOOR_OPEN ||
+              child === floors.DOOR_CLOSED) {
+            return true;
+          } else {
+            return false;
+          }
+          break;
+        default:
+          if (parent === child) return true;
+          return false;
+      }
+    }
+  }; // updateVisibility
+
 
   var passible = function (x, y) {
     return (x >= 0 && x < map.width &&
@@ -338,6 +633,7 @@ Crafty.scene('GameMain', function () {
   };
 
   var lastKey = Crafty.keys.ESC;
+  console.log(player);
 
   keyBindings = this.bind('KeyDown', function (e) {
 
@@ -355,6 +651,7 @@ Crafty.scene('GameMain', function () {
           }
           lastKey = Crafty.keys.ESC;
         }
+        updateVisibility();
       break;
       case Crafty.keys.DOWN_ARROW:
         if (lastKey === Crafty.keys.ESC &&
@@ -369,6 +666,7 @@ Crafty.scene('GameMain', function () {
           }
           lastKey = Crafty.keys.ESC;
         }
+        updateVisibility();
       break;
       case Crafty.keys.LEFT_ARROW:
         if (lastKey === Crafty.keys.ESC &&
@@ -383,6 +681,7 @@ Crafty.scene('GameMain', function () {
           }
           lastKey = Crafty.keys.ESC;
         }
+        updateVisibility();
       break;
       case Crafty.keys.RIGHT_ARROW:
         if (passible(player.at().x + 1,player.at().y)) {
@@ -393,9 +692,10 @@ Crafty.scene('GameMain', function () {
             gameEntityFloor[player.at().x+1][player.at().y].tileType(floors.DOOR_OPEN);
           } else {
             // You kick at thin air
-          }
+          };
           lastKey = Crafty.keys.ESC;
         }
+        updateVisibility();
       break;
       case Crafty.keys.O: // For opening doors
       break;
@@ -421,6 +721,11 @@ Crafty.scene('GameMain', function () {
         lastKey = Crafty.keys.K;
         break;
       case Crafty.keys.COMMA: // For picking up stuff on ground
+        if (e.shiftKey) {
+          generateGameLevel();
+          loadGameLevel();
+          updateVisibility();
+        }
       break;
       case Crafty.keys.P: // For putting on stuff other than armour
       break;
@@ -440,13 +745,40 @@ Crafty.scene('GameMain', function () {
       break;
       case Crafty.keys.S:
       // Search can discover hidden doors, stuff, monsters
-      // If done with shift-key then its a save, reload using name
+      // If done with shift-key then its a save, reload using name;
+        if (e.shiftKey) {
+          var gameFloorMod = [];
+          for (var i = 0; i < gameFloor.length; i++) {
+            gameFloorMod[i] = [];
+            for (var j = 0; j < gameFloor[i].length; j++) {
+              gameFloorMod[i][j] = gameFloor[i][j];
+              if (gameEntityFloor[i][j]._sighted) {
+                gameFloorMod[i][j] += 999;
+              }
+            }
+          }
+          Crafty.storage.save(player.name+'gameFloor','save',gameFloorMod);
+          Crafty.storage.save(player.name,'save',player);
+          console.log('Saved to '+player.name);
+        }
+      break;
+      case Crafty.keys.L:
+        if (e.shiftKey) {
+          loadGame();
+        }
       break;
       case Crafty.keys.Z: // Cast spells from a menu
       break;
       case Crafty.keys.U: // Untraps
       break;
       case Crafty.keys.X: // Switches main and sec weapons
+      break;
+      case Crafty.keys.PERIOD: // Move to next level with shift-key
+        if (e.shiftKey) {
+          generateGameLevel();
+          loadGameLevel();
+          updateVisibility();
+        }
       break;
       case Crafty.keys.ESC: // Escapes the situation
         lastKey = Crafty.keys.ESC;

@@ -1,4 +1,25 @@
 /**
+ * Generic Components
+ */
+Crafty.c('LivingThings', {
+  init: function (){
+    this.hp = 0;
+    this.damage = 0;
+    this.name = 'LivingThing';
+  },
+
+  // Only elements that has this component can fight each other
+  fight: function (other) {
+    if (!other.__c['LivingThings']) {
+      return this;
+    }
+    other.hp -= this.damage;
+    return this;
+  }
+});
+
+
+/**
  * Monster Components
  */
 Crafty.c('MonsterTypes', {
@@ -12,8 +33,10 @@ Crafty.c('MonsterTypes', {
 
 Crafty.c('Monster', {
   init: function () {
+    this.requires('LivingThings');
     this.type = this.monsterAll.NEWT;
-  }
+  },
+
 });
 
 
@@ -104,7 +127,7 @@ Crafty.c('PlayerStats', {
 
 Crafty.c('Player', {
   init: function () {
-    this.requires('2D, Canvas, Color, PlayerAttributes, PlayerStats')
+    this.requires('2D, Canvas, Color, PlayerAttributes, LivingThings, PlayerStats')
         .attr({
           x: 10,
           y: 10,
@@ -113,7 +136,7 @@ Crafty.c('Player', {
           z: 9999999
         })
         .color('rgb(255,0,0)');
-
+    this.name = 'Chunmun';
     this.role = this.roleAll.ARCHEOLOGIST;
     this.race = this.raceAll.HUMAN;
     this.gender = this.genderAll.MALE;
@@ -133,6 +156,38 @@ Crafty.c('Player', {
       statues: [],
       wands: [],
       gold: 0
+    };
+
+    this.bind('SaveData', function (data) {
+      data.c = ['Player', 'obj'];
+      data.name = this.name;
+      data.role = this.role;
+      data.race = this.race;
+      data.gender = this.gender;
+      data.alignment = this.alignment;
+      data.exp = this.exp;
+      data.inventory = this.inventory;
+      data.at = this.at();
+    })
+    .bind('LoadData', function (data) {
+      this.name = data.name;
+      this.role = data.role;
+      this.race = data.race;
+      this.gender = data.gender;
+      this.alignment = data.alignment;
+      this.exp = data.exp;
+      this.inventory = data.inventory;
+      this.at(data.at.x,data.at.y);
+      this._globalZ = 99999;
+    });
+  },
+
+  setName: function (newname) {
+    if (newname === undefined) {
+      return this.name;
+    } else {
+      this.name = newname;
+      return this;
     }
   },
 
@@ -182,8 +237,23 @@ Crafty.c('MenuButton', {
 Crafty.c('Tile', {
   init: function () {
     this._type = Game.config.floor.IMPASSABLE;
-    this.requires('2D, Canvas, Color, Grid');
+    this.requires('2D, Canvas, Color, Grid, Tween');
     this._setColor();
+    this._sighted = false;
+
+    this.bind('SaveData', function (data) {
+      data.c = ['Tile', 'obj'];
+      data._type = this._type;
+      data._sighted = this._sighted;
+      data._alpha = this.alpha;
+      data.at = this.at();
+    })
+    .bind('LoadData', function (data) {
+      this._type = data.type;
+      this._sighted = data._sighted;
+      this._alpha = data._alpha;
+      this.at(data.at.x,data.at.y);
+    });
   },
 
   tileType: function (newType) {
@@ -194,6 +264,18 @@ Crafty.c('Tile', {
       this._setColor();
       return this;
     }
+  },
+
+  tweenLOS: function (inSight, val) {
+    if (inSight) {
+      this.tween({alpha:val}, 10);
+      this._sighted = true;
+    } else if (this._sighted) {
+      this.tween({alpha: 0.5}, 5);
+    } else {
+      this.tween({alpha: 0}, 10);
+    }
+    return this;
   },
 
   _setColor: function () {
@@ -246,8 +328,17 @@ Crafty.c('Tile', {
 
 Crafty.c('Textfield', {
   init: function () {
+    this.requires('2D')
+        .attr({
+          x: 0,
+          y: 0,
+          w: 0,
+          h: 0
+        });
     this._word = '';
-    this._limit = 10;
+
+    this._limit = 20;
+    this.isOn = false;
 
     this.bind('KeyDown', function (e) {
       var i;
@@ -265,32 +356,20 @@ Crafty.c('Textfield', {
           this.drawWord();
         }
       }
-    })
-      .bind('viewSave', function () {
-        this._word = '';
-        this.drawWord();
-      })
-      .bind('closeSave', function () {
-        this.destroyWord();
-      })
-      .bind('viewLoad', function () {
-        this._word = '';
-        this.drawWord();
-      })
-      .bind('closeLoad', function () {
-        this.destroyWord();
-      });
+    });
 
     this.drawWord();
   },
 
   limit: function (limit) {
     this._limit = limit;
+    return this;
   },
 
   setWord: function (word) {
     this._word = word;
     this.drawWord();
+    return this;
   },
 
   getWord: function (word) {
@@ -309,18 +388,26 @@ Crafty.c('Textfield', {
                       .textColor('#FFFFFF', 1)
                       .textFont({'size' : '24px', 'family': 'Arial'});
 
-    this._txt.attr({x: Game.config.canvasWidth / 2,
-                    y: Game.config.canvasHeight / 2 - 22,
+    this._txt.attr({x: this._x,
+                    y: this._y,
                     w: this._word.length * 24,
                     h: 24
                     });
+    return this;
   },
 
   destroyWord: function () {
     if (this._txt !== undefined) {
       this._txt.destroy();
     }
+    return this;
+  },
+
+  setMode: function (mode) {
+    this.isOn = mode;
+    return this;
   }
+
 });
 
 Crafty.c('SaveMenuBindings', {
@@ -384,7 +471,7 @@ Crafty.c('Blackout', {
         this.tween({alpha: 1.0}, 20)
           .bind('TweenEnd', function () {
             this.destroy();
-            Crafty.scene('GameMain');
+            Crafty.scene('Intro');
           });
       });
   }

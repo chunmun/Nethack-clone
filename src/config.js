@@ -35,11 +35,16 @@ Game.config = (function() {
     },
 
     room: {
-      maxWidth: 9,
-      maxHeight: 9,
-      minWidth: 4,
-      minHeight: 4,
-      maxDoors: 4
+      maxWidth: 10,
+      maxHeight: 10,
+      minWidth: 6,
+      minHeight: 6,
+      maxDoors: 4,
+      minDoors: 1
+    },
+
+    player: {
+      visibleRange: 5
     }
   };
 
