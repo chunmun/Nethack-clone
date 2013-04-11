@@ -554,14 +554,15 @@ Crafty.scene('GameMain', function () {
       // Closed-door cannot be parent for any child
       // RoomTiles can light up any other room tiles
       // For all others, just check for same types
+      if (parent === floors.DOOR_OPEN) {
+        return true;
+      }
       if (isRoomTile(parent)) {
         return (isRoomTile(child) || child === floors.DOOR_CLOSED
           ? true : false);
       }
 
       switch (parent) {
-        case floors.DOOR_OPEN:
-          return true;
         case floors.IMPASSABLE:
         case floors.DOOR_CLOSED:
           return false;
@@ -581,162 +582,25 @@ Crafty.scene('GameMain', function () {
     }
   }; // updateVisibility
 
-  var lastKey = Crafty.keys.ESC;
-  var actions = Crafty.e('PlayerActions');
+  var controls = Crafty.e('Controls');
+  var actions = [];
 
-  keyBindings = this.bind('KeyDown', function (e) {
-
-    switch (e.keyCode) {
-      case Crafty.keys.UP_ARROW:
-        if (lastKey === Crafty.keys.ESC &&
-          passible(player.at().x,player.at().y-1)) {
-          player.at(player.at().x,player.at().y-1);
-        } else if (lastKey === Crafty.keys.K) {
-          if (gameFloor[player.at().x][player.at().y-1] === floors.DOOR_CLOSED) {
-            gameFloor[player.at().x][player.at().y-1] = floors.DOOR_OPEN;
-            gameEntityFloor[player.at().x][player.at().y-1].tileType(floors.DOOR_OPEN);
-          } else {
-            // You kick at thin air
-          }
-          lastKey = Crafty.keys.ESC;
-        }
-        updateVisibility();
-      break;
-      case Crafty.keys.DOWN_ARROW:
-        if (lastKey === Crafty.keys.ESC &&
-          passible(player.at().x,player.at().y+1)) {
-          player.at(player.at().x,player.at().y+1);
-        } else if (lastKey === Crafty.keys.K) {
-          if (gameFloor[player.at().x][player.at().y+1] === floors.DOOR_CLOSED) {
-            gameFloor[player.at().x][player.at().y+1] = floors.DOOR_OPEN;
-            gameEntityFloor[player.at().x][player.at().y+1].tileType(floors.DOOR_OPEN);
-          } else {
-            // You kick at thin air
-          }
-          lastKey = Crafty.keys.ESC;
-        }
-        updateVisibility();
-      break;
-      case Crafty.keys.LEFT_ARROW:
-        if (lastKey === Crafty.keys.ESC &&
-          passible(player.at().x-1,player.at().y)) {
-          player.at(player.at().x-1,player.at().y);
-        } else if (lastKey === Crafty.keys.K) {
-          if (gameFloor[player.at().x-1][player.at().y] === floors.DOOR_CLOSED) {
-            gameFloor[player.at().x-1][player.at().y] = floors.DOOR_OPEN;
-            gameEntityFloor[player.at().x-1][player.at().y].tileType(floors.DOOR_OPEN);
-          } else {
-            // You kick at thin air
-          }
-          lastKey = Crafty.keys.ESC;
-        }
-        updateVisibility();
-      break;
-      case Crafty.keys.RIGHT_ARROW:
-        if (passible(player.at().x+1,player.at().y)) {
-          player.at(player.at().x+1,player.at().y);
-        } else if (lastKey === Crafty.keys.K) {
-          if (gameFloor[player.at().x+1][player.at().y] === floors.DOOR_CLOSED) {
-            gameFloor[player.at().x+1][player.at().y] = floors.DOOR_OPEN;
-            gameEntityFloor[player.at().x+1][player.at().y].tileType(floors.DOOR_OPEN);
-          } else {
-            // You kick at thin air
-          };
-          lastKey = Crafty.keys.ESC;
-        }
-        updateVisibility();
-      break;
-      case Crafty.keys.O: // For opening doors
-      break;
-      case Crafty.keys.A: // For applying items
-      break;
-      case Crafty.keys.C: // For closing doors or calling
-      break;
-      case Crafty.keys.D: // For dropping stuff
-      break;
-      case Crafty.keys.E: // For eating food
-      break;
-      case Crafty.keys.SEMICOLON: // For looking around
-      break;
-      case Crafty.keys.F: // For fighting and firing
-        if (e.shiftKey) {
-          lastKey = Crafty.keys.F;
-        }
-      break;
-      case Crafty.keys.H: // For general help
-      break;
-      case Crafty.keys.I: // For seeing the inventory
-      break;
-      case Crafty.keys.J: // For jumping
-      break;
-      case Crafty.keys.K: // For kicking
-        lastKey = Crafty.keys.K;
-        break;
-      case Crafty.keys.COMMA: // For picking up stuff on ground
-        if (e.shiftKey) {
-          generateGameLevel();
-          loadGameLevel();
-          updateVisibility();
-        }
-      break;
-      case Crafty.keys.P: // For putting on stuff other than armour
-      break;
-      case Crafty.keys.R: // For removing stuff that is on
-      break;
-      case Crafty.keys.W:
-      // For wielding weapons
-      // if down wth shift-key then for wearing armour
-      break;
-      case Crafty.keys.T:
-      // For throwing stuff
-      // if done with shift-key then for taking off armour
-      break;
-      case Crafty.keys.Q:
-      // Quaffing or drinking from potions/fountains/sinks
-      // If done with shift-key then its quivering a projectile
-      break;
-      case Crafty.keys.S:
-      // Search can discover hidden doors, stuff, monsters
-      // If done with shift-key then its a save, reload using name;
-        if (e.shiftKey) {
-          var gameFloorMod = [];
-          for (var i = 0; i < gameFloor.length; i++) {
-            gameFloorMod[i] = [];
-            for (var j = 0; j < gameFloor[i].length; j++) {
-              gameFloorMod[i][j] = gameFloor[i][j];
-              if (gameEntityFloor[i][j]._sighted) {
-                gameFloorMod[i][j] += 999;
-              }
-            }
-          }
-          Crafty.storage.save(player._name+'gameFloor','save',gameFloorMod);
-          Crafty.storage.save(player._name,'save',player);
-          console.log('Saved to '+player._name);
-        }
-      break;
-      case Crafty.keys.L:
-        if (e.shiftKey) {
-          loadGame();
-        }
-      break;
-      case Crafty.keys.Z: // Cast spells from a menu
-      break;
-      case Crafty.keys.U: // Untraps
-      break;
-      case Crafty.keys.X: // Switches main and sec weapons
-      break;
-      case Crafty.keys.PERIOD: // Move to next level with shift-key
-        if (e.shiftKey) {
-          generateGameLevel();
-          loadGameLevel();
-          updateVisibility();
-        }
-      break;
-      case Crafty.keys.ESC: // Escapes the situation
-        lastKey = Crafty.keys.ESC;
-        break;
+  actions.push(this.bind('PlayerMove', function (delta) {
+    if (passible(player.at().x + delta.x, player.at().y + delta.y)) {
+      player.at(player.at().x + delta.x, player.at().y + delta.y);
+      updateVisibility();
     }
-  });
+  }));
+
+  actions.push(this.bind('PlayerKick', function (delta) {
+    var x = player.at().x + delta.x;
+    var y = player.at().y + delta.y;
+    if (gameFloor[x][y] === floors.DOOR_CLOSED) {
+      gameFloor[x][y] = floors.DOOR_OPEN;
+      gameEntityFloor[x][y].tileType(floors.DOOR_OPEN);
+      updateVisibility();
+    }
+  }));
 }, function () {
   Crafty.unbind('KeyDown', keyBindings);
 });
