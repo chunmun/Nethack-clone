@@ -63,3 +63,29 @@ Game.config = (function() {
 
   return config;
 })();
+
+// Shuffle the doors
+function shuffle(o){
+  for(var j, x, i = o.length; i; j = parseInt(Math.random() * i), x = o[--i], o[i] = o[j], o[j] = x);
+  return o;
+};
+
+function withinGameBound(x, y) {
+  return (x >= 0 && x < Game.config.map.width &&
+          y >= 0 && y < Game.config.map.height);
+}
+
+function isRoomTile (tile) {
+  return (tile === Game.config.floor.HORT_WALL ||
+          tile === Game.config.floor.VERT_WALL ||
+          tile === Game.config.floor.TOP_RIGHT_CORNER ||
+          tile === Game.config.floor.TOP_LEFT_CORNER ||
+          tile === Game.config.floor.BOT_LEFT_CORNER ||
+          tile === Game.config.floor.BOT_RIGHT_CORNER ||
+          tile === Game.config.floor.DOOR_OPEN ||
+          // tile === Game.config.floor.DOOR_CLOSED ||
+          tile === Game.config.floor.ROOM ||
+          tile === Game.config.floor.STAIRCASE_UP ||
+          tile === Game.config.floor.STAIRCASE_DOWN);
+};
+

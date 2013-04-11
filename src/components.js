@@ -514,6 +514,31 @@ Crafty.c('Box', {
   }
 });
 
+/**
+ * Player Controls
+ */
+Crafty.c('Controls', {
+  init: function () {
+    this.requires('Keyboard');
+    this._player;
+    this._gameFloor;
+    this._monsters;
+  },
+
+  setPlayer: function (player) {
+    this._player = player;
+    return this;
+  },
+
+  setGameFloor: function (gameFloor) {
+    this._gameFloor = gameFloor;
+  },
+
+  setMonsters: function (monsters) {
+    this._monsters = monsters;
+  }
+});
+
 Crafty.c('Blackout', {
   init: function () {
     this.requires('2D, Canvas, Color, Tween')

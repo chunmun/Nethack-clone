@@ -1,29 +1,3 @@
-
-// Shuffle the doors
-function shuffle(o){
-  for(var j, x, i = o.length; i; j = parseInt(Math.random() * i), x = o[--i], o[i] = o[j], o[j] = x);
-  return o;
-};
-
-function withinGameBound(x, y) {
-  return (x >= 0 && x < Game.config.map.width &&
-          y >= 0 && y < Game.config.map.height);
-}
-
-function isRoomTile (tile) {
-  return (tile === Game.config.floor.HORT_WALL ||
-          tile === Game.config.floor.VERT_WALL ||
-          tile === Game.config.floor.TOP_RIGHT_CORNER ||
-          tile === Game.config.floor.TOP_LEFT_CORNER ||
-          tile === Game.config.floor.BOT_LEFT_CORNER ||
-          tile === Game.config.floor.BOT_RIGHT_CORNER ||
-          tile === Game.config.floor.DOOR_OPEN ||
-          // tile === Game.config.floor.DOOR_CLOSED ||
-          tile === Game.config.floor.ROOM ||
-          tile === Game.config.floor.STAIRCASE_UP ||
-          tile === Game.config.floor.STAIRCASE_DOWN);
-};
-
 /**
  * Loading Scene in the Game
  */
@@ -107,7 +81,7 @@ Crafty.scene('Intro', function () {
   Crafty.e('Textfield')
         .attr({
           x: Game.config.canvasWidth / 3,
-          y: Game.config.canvasHeight / 3 + 25,
+          y: Game.config.canvasHeight / 3 + 35,
           w: 10,
           h: 10
         })
@@ -531,14 +505,14 @@ Crafty.scene('GameMain', function () {
       var relX = player.at().x - visibleRange + currX;
       var relY = player.at().y - visibleRange + currY;
 
-      var currFloor = gameFloor[relX][relY];
-      var parentFloor = gameFloor[player.at().x - visibleRange + x][player.at().y - visibleRange + y];
-
       if (!withinGameBound(relX, relY) ||
           (currX < 0 || currX >= visibleRange * 2 + 1 ||
            currY < 0 || currY >= visibleRange * 2 + 1)) { // this check is needed for small rooms
         return;
       }
+
+      var currFloor = gameFloor[relX][relY];
+      var parentFloor = gameFloor[player.at().x - visibleRange + x][player.at().y - visibleRange + y];
 
       if (validParent(parentFloor, currFloor)) {
         if (lighted[currX][currY] === 0) {
@@ -607,9 +581,8 @@ Crafty.scene('GameMain', function () {
     }
   }; // updateVisibility
 
-
   var lastKey = Crafty.keys.ESC;
-  console.log(player);
+  var actions = Crafty.e('PlayerActions');
 
   keyBindings = this.bind('KeyDown', function (e) {
 
@@ -686,6 +659,9 @@ Crafty.scene('GameMain', function () {
       case Crafty.keys.SEMICOLON: // For looking around
       break;
       case Crafty.keys.F: // For fighting and firing
+        if (e.shiftKey) {
+          lastKey = Crafty.keys.F;
+        }
       break;
       case Crafty.keys.H: // For general help
       break;
