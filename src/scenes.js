@@ -54,19 +54,66 @@ Crafty.scene('StartSplash', function() {
 
 // Introduction Scene
 Crafty.scene('Intro', function () {
+  function extractField (obj, field) {
+    var arr = [];
+    for (var i in obj) {
+      arr.push(obj[i][field]);
+    }
+    return arr;
+  }
+
   var input;
   var frameNum = 0;
+  var optionText = [];
   var frames = [
-    {text: 'What is your name ?', next:1, wordFun: function (word) {
-      Crafty('Player, Persist').setName(word);
-    }}
+    {text: 'What is your name ?', next:1, response: 'word',
+     wordFun: function (word) {Crafty('Player, Persist').setName(word);
+    }},
+    {text: 'What is your gender ?', next:2, response: 'letter',
+     possible: extractField(Game.config.player.genders, 'letter'),
+     options: Game.config.player.genders,
+     wordFun: function (word) {Crafty('Player, Persist').setGender(word);
+    }},
+    {text: 'What is your race ?', next:3, response: 'letter',
+     possible: extractField(Game.config.player.races, 'letter'),
+     options: Game.config.player.races,
+     wordFun: function (word) {Crafty('Player, Persist').setRace(word);
+    }},
+    {text: 'What is your role?', next:4, response: 'letter',
+     possible: extractField(Game.config.player.roles, 'letter'),
+     options: Game.config.player.roles,
+     wordFun: function (word) {Crafty('Player, Persist').setRole(word);
+    }},
   ];
+
+  function displayOptions () {
+    if (optionText && optionText.length > 0) {
+      for (var i = 0; i < optionText.length; i++) {
+        optionText[i].destroy();
+      }
+    }
+    var opts = frames[frameNum].options;
+    var x = Crafty.viewport / (frames.length - 1);
+    var y = Crafty.viewport / 3 * 2;
+    for (var i = 0; i < opts.length; i++) {
+      var text = Crafty.e('Textfield')
+                       .setMode(false)
+                       .attr({
+                        x: x,
+                        y: y + i * 10,
+                        w: 10,
+                        h: 24
+                       })
+                       .setWord(opts[i].name + ' - '+opts[i].letter);
+      optionText.push(text);
+    }
+  }
 
   Crafty.e('Textfield')
       .attr({
         x: Game.config.canvasWidth / 3,
         y: Game.config.canvasHeight / 3,
-        w: 10,
+        w: 20,
         h: 10
       })
       .setMode(false)
@@ -75,6 +122,10 @@ Crafty.scene('Intro', function () {
           Crafty.scene('GameMain');
         } else {
           this.setWord(frames[frameNum].text);
+          if (frames[frameNum].options) {
+            console.log('this one has options');
+            displayOptions();
+          }
         }
       });
 
@@ -87,18 +138,32 @@ Crafty.scene('Intro', function () {
         })
         .setMode(true)
         .bind('KeyDown', function (e) {
-          if (e.keyCode === Crafty.keys.ENTER) {
-            input = this.getWord();
-            if (frames[frameNum].wordFun) {
-              frames[frameNum].wordFun(input);
+          input = this.getWord();
+          if (frames[frameNum].response === 'word') {
+            if (e.keyCode === Crafty.keys.ENTER) {
+              if (frames[frameNum].wordFun) {
+                frames[frameNum].wordFun(input);
+              }
+              frameNum = frames[frameNum].next;
+              this.setWord('');
+              Crafty.trigger('ChangeFrame', frameNum);
             }
-            frameNum = frames[frameNum].next;
-            Crafty.trigger('ChangeFrame', frameNum);
+          } else if (frames[frameNum].response === 'letter') {
+            if (e.keyCode >= 48 && e.keyCode <= 90) {
+              if (frames[frameNum].possible.indexOf(input.toLowerCase()) < 0){
+                return;
+              };
+              if (frames[frameNum].wordFun) {
+                frames[frameNum].wordFun(input);
+              }
+              frameNum = frames[frameNum].next;
+              this.setWord('');
+              Crafty.trigger('ChangeFrame', frameNum);
+            }
           }
         });
 
   Crafty.trigger('ChangeFrame');
-
 }, function () {
 
 });
@@ -270,7 +335,7 @@ var placeRoom = function (floor, room) {
   }
   var maxDr = Game.config.room.maxDoors;
   var minDr = Game.config.room.minDoors;
-  for(var doorsLeft = Math.floor(Math.sqrt(Math.random()) * maxDr - minDr) + minDr;
+  for(var doorsLeft = Math.floor(Math.sqrt(Math.random()) * maxDr - minDr + 1) + minDr;
     doorsLeft > 0; doorsLeft--) {
     var ranNum = Math.random();
     if (ranNum <= 0.25) { // Top wall has a door
@@ -306,19 +371,25 @@ Crafty.scene('GameMain', function () {
   var floors = Game.config.floor;
   var map = Game.config.map;
 
-  var passible = function (x, y) {
-    var pass = (withinGameBound(x, y) &&
+  var floorPassible = function (x, y) {
+    return (withinGameBound(x, y) &&
             (gameFloor[x][y] === floors.ROOM ||
             gameFloor[x][y] === floors.ROAD ||
             gameFloor[x][y] === floors.DOOR_OPEN ||
             gameFloor[x][y] === floors.STAIRCASE_UP ||
-            gameFloor[x][y] === floors.STAIRCASE_DOWN));
-    if (gameEntityFloor && gameEntityFloor[x][y].livingThing()) {
+            gameFloor[x][y] === floors.STAIRCASE_DOWN ||
+            gameFloor[x][y] === floors.DOOR_KICKED));
+  }
+
+  var passible = function (x, y) {
+    var pass = floorPassible(x, y);
+    if (pass && gameEntityFloor && gameEntityFloor[x][y].livingThing()) {
       return false;
     } else {
       return pass;
     }
   };
+
   var generateGameLevel = function () {
     var upPlaced = false;
     var downPlaced = false;
@@ -404,12 +475,12 @@ Crafty.scene('GameMain', function () {
     possible = shuffle(possible);
 
     for (var i = 0; i < Game.config.monster.maxLimit; i++) {
-      var monster = Crafty.e('Monster').at(possible[i].x, possible[i].y)
-        .attr({alpha: 0});
+      var monster = Crafty.e('Monster')
+                          .at(possible[i].x, possible[i].y)
+                          .attr({alpha: 1});
       monsters.push(monster);
       gameEntityFloor[possible[i].x][possible[i].y].livingThing(monster);
     }
-
   }; // spawnMonsters
 
   var reloadGame = function (data) {
@@ -452,6 +523,12 @@ Crafty.scene('GameMain', function () {
     });
   };
 
+  var moveThing = function (thing, newX, newY) {
+    gameEntityFloor[thing.at().x][thing.at().y].removeThing();
+    thing.at(newX, newY);
+    gameEntityFloor[newX][newY].livingThing(thing);
+  };
+
   Crafty.storage.getAllKeys('save', function (keys) {
     var found = false;
     for (var i = 0; i < keys.length; i++) {
@@ -471,7 +548,147 @@ Crafty.scene('GameMain', function () {
       player.attr({alpha:1});
       updateVisibility();
     }
+    gameEntityFloor[player.at().x][player.at().y].livingThing(player);
   });
+
+  var getMonsterNextMove = function (monster) {
+    // var arr2 = [];
+    // var arr = [];
+    // for (var i = 0; i < monster.visibleRange() * 2 + 1; i++) {
+    //   arr[i] = [];
+    //   arr2[i] = [];
+    //   for (var j = 0; j < monster.visibleRange() *2 + 1; j++) {
+    //     arr[i][j] = 0;
+    //     arr2[i][j] = 0;
+    //   }
+    // }
+    // function mark(x, y, val) {
+    //   var x = x - monster.at().x + monster.visibleRange();
+    //   var y = y - monster.at().y + monster.visibleRange();
+    //   if (arr[x][y] != 5) {
+    //     arr[x][y] = val;
+    //   }
+    // }
+    // function printArr() {
+    //   for (var i = 0; i < arr.length; i++) {
+    //     for (var j = 0; j < arr[i].length; j++) {
+    //       arr2[i][j] = arr[j][i]
+    //     }
+    //   }
+    //   console.log('arr(transpose): ');
+    //   for (var i = 0; i < arr.length; i++) {
+    //     console.log(arr2[i]);
+    //   }
+    // }
+    // Will only try up to a distance of 2 * visibleRange
+    // If no viable route is found, just keep still
+    var newX = monster.at().x;
+    var newY = monster.at().y;
+    // mark(newX, newY, 5);
+
+    // var frontier = [];
+    var explored = [];
+    var found = false;
+
+    var frontier = binaryHeap(function (a, b) {
+      var diff = (a.distPlayer + a.distMon) - (b.distPlayer + b.distMon);
+      if (diff === 0) {
+        if (Math.random() > 0.5) {
+          return true;
+        } else {
+          return false;
+        }
+      } else if (diff < 0) {
+        return true;
+      } else {
+        return false;
+      }
+    });
+
+    frontier.push({x: newX - 1, y: newY, distMon: 1, distPlayer: player.distWith(newX - 1, newY), parent: null});
+    frontier.push({x: newX, y: newY - 1, distMon: 1, distPlayer: player.distWith(newX, newY - 1), parent: null});
+    frontier.push({x: newX, y: newY + 1, distMon: 1, distPlayer: player.distWith(newX, newY + 1), parent: null});
+    frontier.push({x: newX + 1, y: newY, distMon: 1, distPlayer: player.distWith(newX + 1, newY), parent: null});
+
+    while (frontier.size() !== 0) {
+      var curr = frontier.pop();
+      // mark(curr.x,curr.y,1);
+      if (!withinGameBound(curr.x, curr.y) ||
+          curr.distMon > monster.visibleRange * 2 ||
+          isIn(curr, explored)) continue;
+      if (!floorPassible(curr.x, curr.y)) {
+        // mark(curr.x,curr.y,2);
+        continue;
+      }
+      if (curr.distPlayer === 1) {
+        found = curr;
+        break;
+      }
+      frontier.push({x: curr.x - 1, y: curr.y, distMon: curr.distMon + 1, distPlayer: player.distWith(curr.x - 1, curr.y), parent: curr});
+      frontier.push({x: curr.x, y: curr.y - 1, distMon: curr.distMon + 1, distPlayer: player.distWith(curr.x, curr.y - 1), parent: curr});
+      frontier.push({x: curr.x, y: curr.y + 1, distMon: curr.distMon + 1, distPlayer: player.distWith(curr.x, curr.y + 1), parent: curr});
+      frontier.push({x: curr.x + 1, y: curr.y, distMon: curr.distMon + 1, distPlayer: player.distWith(curr.x + 1, curr.y), parent: curr});
+
+      explored.push(curr);
+    }
+
+    // Backtracking
+    if (found) {
+      while (found.parent !== null) {
+        // mark(found.x,found.y,3);
+        found = found.parent;
+      }
+      if (passible(found.x, found.y)) {
+        newX = found.x;
+        newY = found.y;
+        // mark(newX,newY,4);
+      }
+    }
+    // printArr();
+    return {x: newX, y: newY};
+  }
+
+  var moveMonsters = function () {
+    if (monsters.length === 0) return;
+    for (var i = 0; i < monsters.length; i++) {
+      var monster = monsters[i];
+
+      var dir = [{x: monster.at().x - 1, y: monster.at().y},
+                 {x: monster.at().x, y: monster.at().y - 1},
+                 {x: monster.at().x, y: monster.at().y + 1},
+                 {x: monster.at().x + 1, y: monster.at().y}];
+
+      var distToPlayer = monster.distBetween(player);
+
+      // if the player is adjacent attack the player
+      if (distToPlayer <= 1) {
+          monster.fight(player);
+
+          return;
+      }
+
+      // Check if we're close enough to move towards the player
+      if (distToPlayer <= monster.visibleRange()) {
+        var nextMove = getMonsterNextMove(monster);
+        moveThing(monster, nextMove.x, nextMove.y);
+        continue;
+      }
+
+      // Randomly move around
+      dir = shuffle(dir);
+
+      for (var j in dir) {
+        if (passible(dir[j].x, dir[j].y)) {
+          moveThing(monster, dir[j].x, dir[j].y);
+          break;
+        }
+      }
+
+      if(player.at().x === monster.at().x && player.at().y === monster.at().y) {
+        console.log('There is overlap');
+      }
+    }
+  }
 
   var updateVisibility = function () {
     // Visibility of the monsters are calculated based on the floor
@@ -550,15 +767,17 @@ Crafty.scene('GameMain', function () {
 
 
     function validParent (parent, child) {
-      // Open-door can be parent for any child
+      // Open-door or kicked-door can be parent for any child
       // Closed-door cannot be parent for any child
       // RoomTiles can light up any other room tiles
       // For all others, just check for same types
-      if (parent === floors.DOOR_OPEN) {
+      if (parent === floors.DOOR_OPEN || parent === floors.DOOR_KICKED) {
         return true;
       }
       if (isRoomTile(parent)) {
-        return (isRoomTile(child) || child === floors.DOOR_CLOSED
+        return ((isRoomTile(child) ||
+                child === floors.DOOR_CLOSED ||
+                child === floors.DOOR_KICKED)
           ? true : false);
       }
 
@@ -569,6 +788,7 @@ Crafty.scene('GameMain', function () {
         case floors.ROAD:
           if (child === floors.ROAD ||
               child === floors.DOOR_OPEN ||
+              child === floors.DOOR_KICKED ||
               child === floors.DOOR_CLOSED) {
             return true;
           } else {
@@ -582,32 +802,105 @@ Crafty.scene('GameMain', function () {
     }
   }; // updateVisibility
 
+  var checkDeath = function () {
+    if (player.hp <= 0) {
+      player.attr({alpha: 0});
+      Crafty.scene('DeathScene');
+    }
+  }
+
   var controls = Crafty.e('Controls');
   var actions = [];
+  function getRelDelta (delta) {
+    var rel = {x: player.at().x + delta.x, y: player.at().y + delta.y};
+    return rel;
+  }
+
+  actions.push(this.bind('PlayerOpen', function (delta) {
+    var rel = getRelDelta(delta);
+    if (gameFloor[rel.x][rel.y] === floors.DOOR_CLOSED) {
+      gameFloor[rel.x][rel.y] = floors.DOOR_OPEN;
+      gameEntityFloor[rel.x][rel.y].tileType(floors.DOOR_OPEN);
+      updateVisibility();
+      checkDeath();
+    }
+  }));
 
   actions.push(this.bind('PlayerMove', function (delta) {
-    if (passible(player.at().x + delta.x, player.at().y + delta.y)) {
-      player.at(player.at().x + delta.x, player.at().y + delta.y);
+    var rel = getRelDelta(delta);
+    if (passible(rel.x, rel.y)) {
+      // gameEntityFloor[player.at().x][player.at().y].removeThing();
+      // player.at(rel.x, rel.y);
+      // gameEntityFloor[rel.x][rel.y].livingThing(player);
+      moveThing(player, rel.x, rel.y);
       updateVisibility();
+      moveMonsters();
+      checkDeath();
+    }
+    if (gameEntityFloor[rel.x][rel.y].livingThing()) {
+      Crafty.trigger('PlayerFight', delta);
     }
   }));
 
   actions.push(this.bind('PlayerKick', function (delta) {
-    var x = player.at().x + delta.x;
-    var y = player.at().y + delta.y;
-    if (gameFloor[x][y] === floors.DOOR_CLOSED) {
-      gameFloor[x][y] = floors.DOOR_OPEN;
-      gameEntityFloor[x][y].tileType(floors.DOOR_OPEN);
+    var rel = getRelDelta(delta);
+    if (gameFloor[rel.x][rel.y] === floors.DOOR_CLOSED) {
+      gameFloor[rel.x][rel.y] = floors.DOOR_KICKED;
+      gameEntityFloor[rel.x][rel.y].tileType(floors.DOOR_KICKED);
       updateVisibility();
+      checkDeath();
     }
   }));
+
+  actions.push(this.bind('PlayerClose', function (delta) {
+    var rel = getRelDelta(delta);
+    if (gameFloor[rel.x][rel.y] === floors.DOOR_OPEN) {
+      // Cannot close a door if there's a monster on it
+      if (gameEntityFloor[rel.x][rel.y].livingThing() !== undefined) {
+
+      } else {
+        gameFloor[rel.x][rel.y] = floors.DOOR_CLOSED;
+        gameEntityFloor[rel.x][rel.y].tileType(floors.DOOR_CLOSED);
+        updateVisibility();
+        checkDeath();
+      }
+    }
+  }));
+
+  actions.push(this.bind('PlayerFight', function (delta) {
+    var rel = getRelDelta(delta);
+    var monster = gameEntityFloor[rel.x][rel.y].livingThing();
+    if (monster !== undefined) {
+      player.fight(monster);
+      if (monster.hp <= 0) {
+        monster.destroy();
+        gameEntityFloor[rel.x][rel.y].removeThing();
+        monsters = monsters.filter(function (mon) { return mon !== monster;});
+      }
+      moveMonsters();
+    }
+    checkDeath();
+  }));
+
 }, function () {
   Crafty.unbind('KeyDown', keyBindings);
 });
 
 
 
+Crafty.scene('DeathScene', function () {
+  Crafty.e('Textfield')
+      .attr({
+        x: Crafty.viewport.width / 3,
+        y: Crafty.viewport.height / 2,
+        w: 10,
+        h: 10
+      })
+      .setMode(false)
+      .setWord('You have died');
+}, function () {
 
+});
 
 
 

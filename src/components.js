@@ -3,10 +3,14 @@
  */
 Crafty.c('LivingThings', {
   init: function (){
+    this.requires('2D');
     this.hp = 0;
+    this.maxHp = 0;
     this.damage = 0;
     this._name = 'LivingThing';
     this.fightText = 'It does nothing';
+    this.passible;
+    this.visRange = Game.config.player.visibleRange;
   },
 
   // Only elements that has this component can fight each other
@@ -43,8 +47,26 @@ Crafty.c('LivingThings', {
       });
       return this;
     }
-  }
+  },
 
+  visibleRange: function (range) {
+    if (range !== undefined) {
+      this.visRange = range;
+      return this;
+    } else {
+      return this.visRange;
+    }
+  },
+
+  distBetween: function (other) {
+    return Math.abs(other.at().x - this.at().x) +
+           Math.abs(other.at().y - this.at().y);
+  },
+
+  distWith: function (x, y) {
+    return Math.abs(x - this.at().x) +
+           Math.abs(y - this.at().y);
+  }
 });
 
 
@@ -56,13 +78,15 @@ Crafty.c('MonsterTypes', {
     this.monsterAll = {
       NEWT: {
         name: 'newt',
-        dmg: 1,
+        damage: 1,
+        maxHp: 3,
         fightText: ['newt bites your hand', 'newt bites your leg'],
-        color: 'rgb(100,100,0)'
+        color: 'rgb(250,250,0)'
       },
       JACKAL: {
         name: 'jackal',
-        dmg: 2,
+        damage: 2,
+        maxHp: 5,
         fightText: ['jackal rips you', 'jackal claws you'],
         color: 'rgb(100,0,100)'
       }
@@ -72,7 +96,7 @@ Crafty.c('MonsterTypes', {
 
 Crafty.c('Monster', {
   init: function () {
-    this.requires('Color, Grid, Canvas, MonsterTypes, LivingThings')
+    this.requires('2D, Color, Canvas, MonsterTypes, LivingThings')
       .at(0,0)
       .attr({w: 10, h: 10, z: 9999});
     this.setType('newt');
@@ -86,22 +110,12 @@ Crafty.c('Monster', {
       this.setName(this.monsterType.name);
       this.fightText = this.monsterType.fightText[Math.floor(Math.random()*(this.monsterType.fightText.length-1))];
       this.color(this.monsterType.color);
+      this.maxHp = this.monsterType.maxHp;
+      this.hp = this.maxHp;
+      this.damage = this.monsterType.damage;
       return this;
     }
-  },
-
-  move: function (floor) {
-    var dir = [
-      {x: this.at().x - 1, y: this.at().y},
-      {x: this.at().x, y: this.at().y - 1},
-      {x: this.at().x + 1, y: this.at().y},
-      {x: this.at().x, y: this.at().y + 1}
-    ];
-
-    var choice = dir[Math.floor(Math.random()*3)];
-    this.at(choice.x, choice.y);
-  },
-
+  }
 });
 
 
@@ -120,32 +134,9 @@ Crafty.c('PlayerAttributes', {
       NEUTRAL: {name: 'neutral'},
       BLESSED: {name: 'blessed'}
     };
-    this.raceAll = {
-      HUMAN: {name: 'human', letter: 'h'},
-      ELF: {name: 'elf', letter: 'e'},
-      GNOME: {name: 'gnome', letter: 'g'},
-      ORC: {name: 'orc', letter: 'o'},
-      DWARF: {name: 'dwarf', letter: 'd'}
-      };
-    this.roleAll = {
-      ARCHEOLOGIST: {name: 'Archeologist', letter: 'a'},
-      BARBARIAN: {name: 'Barbarian', letter: 'b'},
-      CAVEMAN: {name: 'Caveman', letter: 'c'},
-      HEALER: {name: 'Healer', letter: 'h'},
-      KNIGHT: {name: 'Knight', letter: 'k'},
-      MONK: {name: 'Monk', letter: 'm'},
-      PRIEST: {name: 'Priest', letter: 'p'},
-      ROGUE: {name: 'Rogue', letter: 'r'},
-      RANGER: {name: 'Ranger', letter: 'R'},
-      SAMURAI: {name: 'Samurai', letter: 's'},
-      TOURIST: {name: 'Tourist', letter: 't'},
-      VALKYRIE: {name: 'Valkyrie', letter: 'v'},
-      WIZARD: {name: 'Wizard', letter: 'w'}
-    };
-    this.genderAll = {
-      FEMALE: {name: 'Female', letter: 'f'},
-      MALE: {name: 'Male', letter: 'm'}
-    };
+    this.raceAll = Game.config.player.races;
+    this.roleAll = Game.config.player.roles;
+    this.genderAll = Game.config.player.genders;
   }
 });
 
@@ -222,6 +213,9 @@ Crafty.c('Player', {
       wands: [],
       gold: 0
     };
+    this.hp = 10;
+    this.maxHp = 10;
+    this.damage = 1;
 
     this.bind('SaveData', function (data) {
       data.c = ['Player', 'obj'];
@@ -245,8 +239,34 @@ Crafty.c('Player', {
       this.at(data.at.x,data.at.y);
       this._globalZ = 99999;
     });
-  }
+  },
 
+  setRace: function (letter) {
+    for (var i = 0; i < this.raceAll.length; i++) {
+      if (this.raceAll[i].letter === letter.toLowerCase()) {
+        this.race = this.raceAll[i];
+        break;
+      }
+    }
+  },
+
+  setRole: function (letter) {
+    for (var i = 0; i < this.roleAll.length; i++) {
+      if (this.roleAll[i].letter === letter.toLowerCase()) {
+        this.role = this.roleAll[i];
+        break;
+      }
+    }
+  },
+
+  setGender: function (letter) {
+    for (var i = 0; i < this.genderAll.length; i++) {
+      if (this.genderAll[i].letter === letter.toLowerCase()) {
+        this.gender = this.genderAll[i];
+        break;
+      }
+    }
+  }
 });
 
 
@@ -308,13 +328,17 @@ Crafty.c('Tile', {
     }
   },
 
-  livingThing :function (thing) {
+  livingThing: function (thing) {
     if (thing === undefined) {
       return this._livingThing;
     } else {
       this._livingThing = thing;
       return this;
     }
+  },
+
+  removeThing: function () {
+    this._livingThing = undefined;
   },
 
   tweenLOS: function (inSight, val) {
@@ -372,6 +396,9 @@ Crafty.c('Tile', {
       case floors.DOOR_OPEN:
         this.color('rgb(0,0,255)');
         break;
+      case floors.DOOR_KICKED:
+        this.color('rgb(100,100,100)')
+        break;
       case floors.STAIRCASE_UP:
         this.color('rgb(10,20,30)');
         break;
@@ -421,7 +448,7 @@ Crafty.c('Textfield', {
 
   limit: function (limit) {
     this._limit = limit;
-    return this;
+  return this;
   },
 
   setWord: function (word) {
@@ -465,7 +492,6 @@ Crafty.c('Textfield', {
     this.isOn = mode;
     return this;
   }
-
 });
 
 Crafty.c('SaveMenuBindings', {
@@ -524,9 +550,11 @@ Crafty.c('Controls', {
     this._gameFloor;
     this._monsters;
     this._dirTrigger = {
+      OPEN: 'PlayerOpen',
       MOVE: 'PlayerMove',
       KICK: 'PlayerKick',
-      FIGHT: 'PlayerMelee'
+      FIGHT: 'PlayerFight',
+      CLOSE: 'PlayerClose'
     };
     this._currDirTrigger = this._dirTrigger.MOVE;
 
@@ -549,10 +577,12 @@ Crafty.c('Controls', {
           this._currDirTrigger = this._dirTrigger.MOVE;
         break;
         case Crafty.keys.O: // For opening doors
+          this._currDirTrigger = this._dirTrigger.OPEN;
         break;
         case Crafty.keys.A: // For applying items
         break;
         case Crafty.keys.C: // For closing doors or calling
+          this._currDirTrigger = this._dirTrigger.CLOSE;
         break;
         case Crafty.keys.D: // For dropping stuff
         break;
@@ -562,7 +592,7 @@ Crafty.c('Controls', {
         break;
         case Crafty.keys.F: // For fighting and firing
           if (e.shiftKey) {
-            lastKey = Crafty.keys.F;
+            this._currDirTrigger = this._dirTrigger.FIGHT;
           }
         break;
         case Crafty.keys.H: // For general help

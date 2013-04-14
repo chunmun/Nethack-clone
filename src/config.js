@@ -30,8 +30,9 @@ Game.config = (function() {
       ROOM: 8,
       DOOR_CLOSED: 9,
       DOOR_OPEN: 10,
-      STAIRCASE_UP: 11,
-      STAIRCASE_DOWN: 12
+      DOOR_KICKED: 11,
+      STAIRCASE_UP: 12,
+      STAIRCASE_DOWN: 13,
     },
 
     room: {
@@ -43,15 +44,44 @@ Game.config = (function() {
       minDoors: 1
     },
 
-    player: {
-      visibleRange: 5
-    },
-
     monster: {
       maxLimit: 10
     },
 
-    baseAlpha: 0.2
+    baseAlpha: 0.2,
+
+    player: {
+      visibleRange: 5,
+
+      roles: {
+        ARCHEOLOGIST: {name: 'Archeologist', letter: 'a'},
+        BARBARIAN: {name: 'Barbarian', letter: 'b'},
+        CAVEMAN: {name: 'Caveman', letter: 'c'},
+        HEALER: {name: 'Healer', letter: 'h'},
+        KNIGHT: {name: 'Knight', letter: 'k'},
+        MONK: {name: 'Monk', letter: 'm'},
+        PRIEST: {name: 'Priest', letter: 'p'},
+        ROGUE: {name: 'Rogue', letter: 'r'},
+        RANGER: {name: 'Ranger', letter: 'g'},
+        SAMURAI: {name: 'Samurai', letter: 's'},
+        TOURIST: {name: 'Tourist', letter: 't'},
+        VALKYRIE: {name: 'Valkyrie', letter: 'v'},
+        WIZARD: {name: 'Wizard', letter: 'w'}
+      },
+
+      genders: {
+        FEMALE: {name: 'Female', letter: 'f'},
+        MALE: {name: 'Male', letter: 'm'}
+      },
+
+      races: {
+        HUMAN: {name: 'human', letter: 'h'},
+        ELF: {name: 'elf', letter: 'e'},
+        GNOME: {name: 'gnome', letter: 'g'},
+        ORC: {name: 'orc', letter: 'o'},
+        DWARF: {name: 'dwarf', letter: 'd'}
+      }
+    } // player
   };
 
   config.canvasWidth = (config.map.width +
@@ -83,9 +113,79 @@ function isRoomTile (tile) {
           tile === Game.config.floor.BOT_LEFT_CORNER ||
           tile === Game.config.floor.BOT_RIGHT_CORNER ||
           tile === Game.config.floor.DOOR_OPEN ||
+          tile === Game.config.floor.DOOR_KICKED ||
           // tile === Game.config.floor.DOOR_CLOSED ||
           tile === Game.config.floor.ROOM ||
           tile === Game.config.floor.STAIRCASE_UP ||
           tile === Game.config.floor.STAIRCASE_DOWN);
 };
 
+var binaryHeap = function(comp) {
+
+  // default to max heap if comparator not provided
+  comp = comp || function(a, b) {
+    return a > b;
+  };
+
+  var arr = [];
+
+  var swap = function(a, b) {
+    var temp = arr[a];
+    arr[a] = arr[b];
+    arr[b] = temp;
+  };
+
+  var bubbleDown = function(pos) {
+    var left = 2 * pos + 1;
+    var right = left + 1;
+    var largest = pos;
+    if (left < arr.length && comp(arr[left], arr[largest])) {
+      largest = left;
+    }
+    if (right < arr.length && comp(arr[right], arr[largest])) {
+      largest = right;
+    }
+    if (largest != pos) {
+      swap(largest, pos);
+      bubbleDown(largest);
+    }
+  };
+
+  var bubbleUp = function(pos) {
+    if (pos <= 0) {
+      return;
+    }
+    var parent = Math.floor((pos - 1) / 2);
+    if (comp(arr[pos], arr[parent])) {
+      swap(pos, parent);
+      bubbleUp(parent);
+    }
+  };
+
+  var that = {};
+
+  that.pop = function() {
+    if (arr.length === 0) {
+      throw new Error("pop() called on emtpy binary heap");
+    }
+    var value = arr[0];
+    var last = arr.length - 1;
+    arr[0] = arr[last];
+    arr.length = last;
+    if (last > 0) {
+      bubbleDown(0);
+    }
+    return value;
+  };
+
+  that.push = function(value) {
+    arr.push(value);
+    bubbleUp(arr.length - 1);
+  };
+
+  that.size = function() {
+    return arr.length;
+  };
+
+  return that;
+};
