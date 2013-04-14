@@ -448,7 +448,7 @@ Crafty.c('Textfield', {
 
   limit: function (limit) {
     this._limit = limit;
-  return this;
+    return this;
   },
 
   setWord: function (word) {
@@ -689,22 +689,32 @@ Crafty.c('Controls', {
 
 Crafty.c('Blackout', {
   init: function () {
+    this.nextScene = 'Intro';
     this.requires('2D, Canvas, Color, Tween')
       .attr({
         x: 0,
         y: 0,
         w: Crafty.viewport.width,
         h: Crafty.viewport.height,
+        z: 99999,
         alpha: 0.0
       })
       .color('rgb(0,0,0)')
       .bind('blackOut', function () {
         this.tween({alpha: 1.0}, 20)
-          .bind('TweenEnd', function () {
-            this.destroy();
-            Crafty.scene('Intro');
-          });
+            .bind('TweenEnd', function () {
+              this.tween({alpha: 0}, 20)
+              Crafty.scene(this.nextScene);
+              if (this._alpha === 0) {
+                this.destroy();
+              }
+            });
       });
+  },
+
+  setNextScene: function (next) {
+    this.nextScene = next;
+    return this;
   }
 });
 

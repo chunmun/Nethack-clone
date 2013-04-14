@@ -33,7 +33,7 @@ Crafty.scene('StartSplash', function() {
       .attr({
         w: 100,
         h: 20,
-        x: (Crafty.viewport.width / 3),
+        x: (Crafty.viewport.width / 3 - 20),
         y: (Crafty.viewport.height / 2),
         z: 2
       })
@@ -45,8 +45,7 @@ Crafty.scene('StartSplash', function() {
   blackFun = function() {
     Crafty.trigger('blackOut');
   };
-
-  Crafty.bind('KeyDown', blackFun);
+  this.bind('KeyDown', blackFun);
 }, function() {
   Crafty.unbind('KeyDown', blackFun);
 });
@@ -54,6 +53,7 @@ Crafty.scene('StartSplash', function() {
 
 // Introduction Scene
 Crafty.scene('Intro', function () {
+  blackFun = undefined;
   function extractField (obj, field) {
     var arr = [];
     for (var i in obj) {
@@ -65,9 +65,18 @@ Crafty.scene('Intro', function () {
   var input;
   var frameNum = 0;
   var optionText = [];
+  var selectedOptions = [];
+
   var frames = [
     {text: 'What is your name ?', next:1, response: 'word',
-     wordFun: function (word) {Crafty('Player, Persist').setName(word);
+     wordFun: function (word) {
+       Crafty('Player, Persist').setName(word);
+       Crafty.e('Textfield').attr({
+        x: Game.config.canvasWidth / 3,
+        y: Game.config.canvasHeight / 3 + 35,
+        w: 10,
+        h: 10
+       }).setMode(false).setWord(input);
     }},
     {text: 'What is your gender ?', next:2, response: 'letter',
      possible: extractField(Game.config.player.genders, 'letter'),
@@ -89,23 +98,37 @@ Crafty.scene('Intro', function () {
   function displayOptions () {
     if (optionText && optionText.length > 0) {
       for (var i = 0; i < optionText.length; i++) {
-        optionText[i].destroy();
+        var optionWord = optionText[i].getWord();
+        if (optionWord.slice(optionWord.length-1).toLowerCase() === input.toLowerCase()) {
+          selectedOptions.push(optionText[i]);
+        } else {
+          optionText[i].setWord('');
+          optionText[i].destroy();
+        }
       }
+      optionText = [];
     }
     var opts = frames[frameNum].options;
-    var x = Crafty.viewport / (frames.length - 1);
-    var y = Crafty.viewport / 3 * 2;
-    for (var i = 0; i < opts.length; i++) {
+    console.log('options');
+    console.log(opts);
+    var x = Crafty.viewport.width / (frames.length + 1) * frameNum;
+    var y = Crafty.viewport.height / 3 + 70;
+    var i = 0;
+    console.log('x: '+x+',y: '+y+',i: '+i);
+    for (var opt in opts) {
       var text = Crafty.e('Textfield')
                        .setMode(false)
+                       .limit(50)
                        .attr({
                         x: x,
-                        y: y + i * 10,
+                        y: y + i * 24,
                         w: 10,
                         h: 24
                        })
-                       .setWord(opts[i].name + ' - '+opts[i].letter);
+                       .setWord(opts[opt].name + ' - '+opts[opt].letter);
       optionText.push(text);
+      console.log(text);
+      i++;
     }
   }
 
@@ -117,13 +140,14 @@ Crafty.scene('Intro', function () {
         h: 10
       })
       .setMode(false)
+      .limit(50)
       .bind('ChangeFrame', function () {
         if (frameNum >= frames.length) {
-          Crafty.scene('GameMain');
+          Crafty.e('Blackout')
+                .setNextScene('GameMain');
         } else {
           this.setWord(frames[frameNum].text);
           if (frames[frameNum].options) {
-            console.log('this one has options');
             displayOptions();
           }
         }
@@ -136,6 +160,7 @@ Crafty.scene('Intro', function () {
           w: 10,
           h: 10
         })
+        .limit(50)
         .setMode(true)
         .bind('KeyDown', function (e) {
           input = this.getWord();
@@ -149,8 +174,16 @@ Crafty.scene('Intro', function () {
               Crafty.trigger('ChangeFrame', frameNum);
             }
           } else if (frames[frameNum].response === 'letter') {
+            if (e.keyCode === Crafty.keys.BACKSPACE && frameNum > 1) {
+              frameNum--;
+              var last = selectedOptions.pop();
+              last.setWord('');
+              last.destroy();
+              Crafty.trigger('ChangeFrame', frameNum);
+            }
             if (e.keyCode >= 48 && e.keyCode <= 90) {
               if (frames[frameNum].possible.indexOf(input.toLowerCase()) < 0){
+                this.setWord('')
                 return;
               };
               if (frames[frameNum].wordFun) {
@@ -901,112 +934,3 @@ Crafty.scene('DeathScene', function () {
 }, function () {
 
 });
-
-
-
-
-
-
-
-
-// /**
-//  * Start Menu Scene
-//  * - Menu to start new game or load saved games
-//  */
-// var Scene_StartMenu_keybinds;
-// Crafty.scene('StartMenuOld', function() {
-//   // Opening text
-//   Crafty.e('2D, DOM, Text')
-//     .attr({
-//       x: Game.config.canvasWidth / 2 - 125,
-//       y: Game.config.canvasHeight / 3,
-//       w: 250
-//     })
-//     .css('text-align', 'center')
-//     .text('Conway Game of Life')
-//     .textColor('#000000', 1)
-//     .textFont({'size' : '24px', 'family': 'Arial'});
-
-//   var mode = {
-//     SINGLE: function () {Crafty.scene('GameSingle');},
-//     MULTI: function () {Crafty.scene('GameMulti');}
-//   };
-
-//   var currentMode = mode.SINGLE;
-
-//   var boxSingle = Crafty.e('Blinker, 2D, Canvas, Color, KeyBind')
-//     .attr({
-//       x: Game.config.canvasWidth / 2 - 75,
-//       y: Game.config.canvasHeight / 2 - 25,
-//       w: 150,
-//       h: 50
-//     })
-//     .interval(7)
-//     .color('rgb(1,0,0)')
-//     .startBlink();
-
-//   var boxMulti = Crafty.e('Blinker, 2D, Canvas, Color, KeyBind')
-//      .attr({
-//       x: Game.config.canvasWidth / 2 - 75,
-//       y: Game.config.canvasHeight / 2 + 35,
-//       w: 150,
-//       h: 50
-//     })
-//     .interval(7)
-//     .color('rgb(1,0,0)');
-
-//   Scene_StartMenu_keybinds = this.bind('KeyDown', function (e) {
-//       switch (e.keyCode) {
-//         case Crafty.keys.UP_ARROW:
-//           boxSingle.startBlink();
-//           boxMulti.stopBlink();
-//           currentMode = mode.SINGLE;
-//           break;
-//         case Crafty.keys.DOWN_ARROW:
-//           boxSingle.stopBlink();
-//           boxMulti.startBlink();
-//           currentMode = mode.MULTI;
-//           break;
-
-//         case Crafty.keys.ENTER:
-//           currentMode();
-//           break;
-//       }
-//     });
-// }, function() {
-//   Crafty.unbind('KeyDown', Scene_StartMenu_keybinds);
-// });
-
-
-// Crafty.scene('GameSingle', function () {
-//   Crafty.e('2D, DOM, Text')
-//     .attr({
-//       x: Game.config.canvasWidth / 2 - 125,
-//       y: Game.config.canvasHeight / 3,
-//       w: 250
-//     })
-//     .css('text-align', 'center')
-//     .text('Single')
-//     .textColor('#000000', 1)
-//     .textFont({'size' : '24px', 'family': 'Arial'});
-
-//   Crafty.scene('GameMain');
-// }, function () {
-
-// });
-
-
-// Crafty.scene('GameMulti', function () {
-//   Crafty.e('2D, DOM, Text')
-//     .attr({
-//       x: Game.config.canvasWidth / 2 - 125,
-//       y: Game.config.canvasHeight / 3,
-//       w: 250
-//     })
-//     .css('text-align', 'center')
-//     .text('Multi')
-//     .textColor('#000000', 1)
-//     .textFont({'size' : '24px', 'family': 'Arial'});
-// }, function () {
-
-// });
