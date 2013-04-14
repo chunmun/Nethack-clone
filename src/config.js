@@ -1,5 +1,7 @@
 Game.config = (function() {
   var config = {
+    font: 'COURIER NEW',
+
     tile: {
       width: 16,
       height: 16
@@ -13,9 +15,9 @@ Game.config = (function() {
 
     padding: {
       top: 1,
-      bot: 1,
-      left: 1,
-      right: 1
+      bot: 8,
+      left: 10,
+      right: 10
     },
 
     floor: {
@@ -81,7 +83,19 @@ Game.config = (function() {
         ORC: {name: 'Orc', letter: 'o'},
         DWARF: {name: 'Dwarf', letter: 'd'}
       }
-    } // player
+    }, // player
+
+    mainText: {
+      OPEN_DOOR: ['You opened the door with ease',
+                  'A slight twist and the door opens',
+                  'The door creaks open slowly',
+                  'With a little effort, the door opens to you'],
+
+      KICK_DOOR: ['You gave that door a roundhouse kick and smashes it to bits'],
+      CLOSE_DOOR: ['The door slams shut',
+                   'You pull on the handle with might and seal the door',
+                   'Without a sound, the door slowly closes'],
+    }
   };
 
   config.canvasWidth = (config.map.width +
@@ -90,6 +104,7 @@ Game.config = (function() {
   config.canvasHeight = (config.map.height +
                         config.padding.top +
                         config.padding.bot) * config.tile.height;
+
 
   return config;
 })();

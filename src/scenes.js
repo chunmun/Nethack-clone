@@ -2,12 +2,12 @@
  * Loading Scene in the Game
  */
 Crafty.scene('Loading', function() {
-  console.log('Start Loading');
+  Crafty.background('rgb(0,0,0)');
   var loadingText = Crafty.e("2D, DOM, Text")
       .attr({w: 500, h: 20, x: ((Crafty.viewport.width) / 2), y: (Crafty.viewport.height / 2), z: 2})
       .text('Loading ...')
       .textColor('#000')
-      .textFont({'size' : '24px', 'family': 'Arial'});
+      .textFont({'size' : '24px', 'family': Game.config.font});
 
   // var assets = [];
 
@@ -28,7 +28,6 @@ Crafty.scene('Loading', function() {
 
 var blackFun;
 Crafty.scene('StartSplash', function() {
-  Crafty.background('rgb(0,0,0)');
   var StartText = Crafty.e("2D, Canvas, Text")
       .attr({
         w: 100,
@@ -39,7 +38,7 @@ Crafty.scene('StartSplash', function() {
       })
       .text('Press any key to start game')
       .textColor('#FFFFFF')
-      .textFont({'size' : '24px', 'family': 'Arial'});
+      .textFont({'size' : '24px', 'family': Game.config.font});
 
   var blackout = Crafty.e('Blackout');
   blackFun = function() {
@@ -70,7 +69,7 @@ Crafty.scene('Intro', function () {
   var frames = [
     {text: 'What is your name ?', next:1, response: 'word',
      wordFun: function (word) {
-       Crafty('Player, Persist').setName(word);
+       Crafty('Player, Persist').setLivingName(word);
        Crafty.e('Textfield').attr({
         x: Game.config.canvasWidth / 3,
         y: Game.config.canvasHeight / 3 + 35,
@@ -108,13 +107,11 @@ Crafty.scene('Intro', function () {
       }
       optionText = [];
     }
+    if (!frames[frameNum] || !frames[frameNum].options) return;
     var opts = frames[frameNum].options;
-    console.log('options');
-    console.log(opts);
     var x = Crafty.viewport.width / (frames.length + 1) * frameNum;
     var y = Crafty.viewport.height / 3 + 70;
     var i = 0;
-    console.log('x: '+x+',y: '+y+',i: '+i);
     for (var opt in opts) {
       var text = Crafty.e('Textfield')
                        .setMode(false)
@@ -127,7 +124,6 @@ Crafty.scene('Intro', function () {
                        })
                        .setWord(opts[opt].name + ' - '+opts[opt].letter);
       optionText.push(text);
-      console.log(text);
       i++;
     }
   }
@@ -142,14 +138,12 @@ Crafty.scene('Intro', function () {
       .setMode(false)
       .limit(50)
       .bind('ChangeFrame', function () {
+        displayOptions();
         if (frameNum >= frames.length) {
           Crafty.e('Blackout')
                 .setNextScene('GameMain');
         } else {
           this.setWord(frames[frameNum].text);
-          if (frames[frameNum].options) {
-            displayOptions();
-          }
         }
       });
 
@@ -174,6 +168,7 @@ Crafty.scene('Intro', function () {
               Crafty.trigger('ChangeFrame', frameNum);
             }
           } else if (frames[frameNum].response === 'letter') {
+
             if (e.keyCode === Crafty.keys.BACKSPACE && frameNum > 1) {
               frameNum--;
               var last = selectedOptions.pop();
@@ -181,6 +176,7 @@ Crafty.scene('Intro', function () {
               last.destroy();
               Crafty.trigger('ChangeFrame', frameNum);
             }
+
             if (e.keyCode >= 48 && e.keyCode <= 90) {
               if (frames[frameNum].possible.indexOf(input.toLowerCase()) < 0){
                 this.setWord('')
@@ -395,7 +391,6 @@ Crafty.keys.SEMICOLON = 186;
 var keyBindings;
 
 Crafty.scene('GameMain', function () {
-  Crafty.background('rgb(0,0,0)');
   var gameFloor;
   var gameEntityFloor;
   var monsters = [];
@@ -403,6 +398,32 @@ Crafty.scene('GameMain', function () {
   var items;
   var floors = Game.config.floor;
   var map = Game.config.map;
+
+  var mainText = Crafty.e('MainText');
+  mainText.append('Loading Game');
+
+  Crafty.storage.getAllKeys('save', function (keys) {
+    var found = false;
+    for (var i = 0; i < keys.length; i++) {
+      if (keys[i] === player._name) {
+        loadGame(function () {
+          player.attr({alpha: 1});
+          updateVisibility();
+        });
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      generateGameLevel();
+      loadGameLevel();
+      spawnMonsters(gameFloor);
+      player.attr({alpha:1});
+      updateVisibility();
+      mainText.append('Load Done');
+    }
+    gameEntityFloor[player.at().x][player.at().y].livingThing(player);
+  });
 
   var floorPassible = function (x, y) {
     return (withinGameBound(x, y) &&
@@ -562,27 +583,6 @@ Crafty.scene('GameMain', function () {
     gameEntityFloor[newX][newY].livingThing(thing);
   };
 
-  Crafty.storage.getAllKeys('save', function (keys) {
-    var found = false;
-    for (var i = 0; i < keys.length; i++) {
-      if (keys[i] === player._name) {
-        loadGame(function () {
-          player.attr({alpha: 1});
-          updateVisibility();
-        });
-        found = true;
-        break;
-      }
-    }
-    if (!found) {
-      generateGameLevel();
-      loadGameLevel();
-      spawnMonsters(gameFloor);
-      player.attr({alpha:1});
-      updateVisibility();
-    }
-    gameEntityFloor[player.at().x][player.at().y].livingThing(player);
-  });
 
   var getMonsterNextMove = function (monster) {
     // var arr2 = [];
@@ -696,7 +696,6 @@ Crafty.scene('GameMain', function () {
       // if the player is adjacent attack the player
       if (distToPlayer <= 1) {
           monster.fight(player);
-
           return;
       }
 
@@ -842,6 +841,11 @@ Crafty.scene('GameMain', function () {
     }
   }
 
+  var appendRandomText = function (textArr) {
+    var i = Math.floor(Math.random() * (textArr.length - 1));
+    mainText.append(textArr[i]);
+  }
+
   var controls = Crafty.e('Controls');
   var actions = [];
   function getRelDelta (delta) {
@@ -856,15 +860,13 @@ Crafty.scene('GameMain', function () {
       gameEntityFloor[rel.x][rel.y].tileType(floors.DOOR_OPEN);
       updateVisibility();
       checkDeath();
+      appendRandomText(Game.config.mainText.OPEN_DOOR);
     }
   }));
 
   actions.push(this.bind('PlayerMove', function (delta) {
     var rel = getRelDelta(delta);
     if (passible(rel.x, rel.y)) {
-      // gameEntityFloor[player.at().x][player.at().y].removeThing();
-      // player.at(rel.x, rel.y);
-      // gameEntityFloor[rel.x][rel.y].livingThing(player);
       moveThing(player, rel.x, rel.y);
       updateVisibility();
       moveMonsters();
@@ -882,6 +884,7 @@ Crafty.scene('GameMain', function () {
       gameEntityFloor[rel.x][rel.y].tileType(floors.DOOR_KICKED);
       updateVisibility();
       checkDeath();
+      appendRandomText(Game.config.mainText.KICK_DOOR);
     }
   }));
 
@@ -896,6 +899,7 @@ Crafty.scene('GameMain', function () {
         gameEntityFloor[rel.x][rel.y].tileType(floors.DOOR_CLOSED);
         updateVisibility();
         checkDeath();
+        appendRandomText(Game.config.mainText.CLOSE_DOOR);
       }
     }
   }));
