@@ -113,12 +113,11 @@ Crafty.c('Monster', {
       this.monsterType = this.monsterAll[newtype.toUpperCase()];
       this.setLivingName(this.monsterType.livingName);
       this.fightText = function () {
-        return this.monsterType.fightText[Math.floor(Math.random()*(this.monsterType.fightText.length))];
+        return this.monsterType.fightText[
+            Math.floor(Math.random()*(this.monsterType.fightText.length))] +
+            ' for '+this.monsterType.damage+' dmg';
       };
-      console.log('this.monsterType: ');
-      console.log(this.monsterType);
       this.moveChance = this.monsterType.moveChance;
-      console.log(this.moveChance);
       this.color(this.monsterType.color);
       this.maxHp = this.monsterType.maxHp;
       this.hp = this.maxHp;
@@ -292,7 +291,7 @@ Crafty.c('Player', {
 
   generateFightText: function () {
     this.fightText = function (monster) {
-      return 'You boxed the '+ monster.setLivingName()+' with your burly bare hands';
+      return 'You boxed the '+ monster.setLivingName()+' with your burly bare hands for '+this.damage+' dmg';
     };
   },
 });
@@ -448,7 +447,7 @@ Crafty.c('Textfield', {
           h: 0
         });
     this._word = '';
-    this._fontSize = '24px';
+    this._fontSize;
 
     this._limit = 20;
     this.isOn = false;
@@ -475,7 +474,7 @@ Crafty.c('Textfield', {
   },
 
   setFontSize: function (size) {
-    this._fontSize = size+'px';
+    this._fontSize = size;
     return this;
   },
 
@@ -503,9 +502,17 @@ Crafty.c('Textfield', {
     }
 
     this._txt = Crafty.e('2D, Canvas, Text, Tween')
-                      .text(this._word.slice(shown))
-                      .textColor('#FFFFFF', 1)
-                      .textFont({'size' : this._fontSize, 'family': Game.config.font});
+                      .textColor('#FFFFFF', 1);
+
+    if (this._word) {
+      this._txt.text(this._word.slice(shown))
+    }
+
+    if (this._fontSize) {
+      this._txt.textFont({'size' : this._fontSize+'px', 'family': Game.config.font});
+    } else {
+      this._txt.textFont({'size' : '24px', 'family': Game.config.font});
+    }
 
     this._txt.attr({x: this._x,
                     y: this._y,
@@ -525,7 +532,7 @@ Crafty.c('Textfield', {
     return this;
   },
 
-  setAlpha: function (al) {
+  setTxtAlpha: function (al) {
     this._txt.attr({alpha: al});
   },
 
@@ -594,7 +601,8 @@ Crafty.c('Controls', {
       MOVE: 'PlayerMove',
       KICK: 'PlayerKick',
       FIGHT: 'PlayerFight',
-      CLOSE: 'PlayerClose'
+      CLOSE: 'PlayerClose',
+      LOOK: 'PlayerLook'
     };
     this._currDirTrigger = this._dirTrigger.MOVE;
 
@@ -602,19 +610,23 @@ Crafty.c('Controls', {
       switch (e.keyCode) {
         case Crafty.keys.UP_ARROW:
           Crafty.trigger(this._currDirTrigger, {x: 0, y: -1});
-          this._currDirTrigger = this._dirTrigger.MOVE;
+          if (this._currDirTrigger != this._dirTrigger.LOOK)
+            this._currDirTrigger = this._dirTrigger.MOVE;
         break;
         case Crafty.keys.DOWN_ARROW:
           Crafty.trigger(this._currDirTrigger, {x: 0, y: 1});
-          this._currDirTrigger = this._dirTrigger.MOVE;
+          if (this._currDirTrigger != this._dirTrigger.LOOK)
+            this._currDirTrigger = this._dirTrigger.MOVE;
         break;
         case Crafty.keys.LEFT_ARROW:
           Crafty.trigger(this._currDirTrigger, {x:-1, y:0});
-          this._currDirTrigger = this._dirTrigger.MOVE;
+          if (this._currDirTrigger != this._dirTrigger.LOOK)
+            this._currDirTrigger = this._dirTrigger.MOVE;
         break;
         case Crafty.keys.RIGHT_ARROW:
           Crafty.trigger(this._currDirTrigger, {x:1, y:0});
-          this._currDirTrigger = this._dirTrigger.MOVE;
+          if (this._currDirTrigger != this._dirTrigger.LOOK)
+            this._currDirTrigger = this._dirTrigger.MOVE;
         break;
         case Crafty.keys.O: // For opening doors
           this._currDirTrigger = this._dirTrigger.OPEN;
@@ -629,6 +641,9 @@ Crafty.c('Controls', {
         case Crafty.keys.E: // For eating food
         break;
         case Crafty.keys.SEMICOLON: // For looking around
+          console.log('calling the semicolon');
+          this._currDirTrigger = this._dirTrigger.LOOK;
+          Crafty.trigger(this._currDirTrigger, {x: 0, y: 0});
         break;
         case Crafty.keys.F: // For fighting and firing
           if (e.shiftKey) {
@@ -688,6 +703,7 @@ Crafty.c('Controls', {
           }
         break;
         case Crafty.keys.ESC: // Escapes the situation
+          Crafty.trigger('ControlClear')
           this._currDirTrigger = this._dirTrigger.MOVE;
         break;
       }
@@ -806,6 +822,58 @@ Crafty.c('KeyBind', {
   }
 });
 
+Crafty.c('Target', {
+  init: function () {
+    var tileHeight = Game.config.tile.height;
+    var tileWidth = Game.config.tile.width;
+
+    this.requires('Grid, Canvas, Tween');
+    // Create the horizontal pieces
+    for (var i = 0; i < 2; i++) {
+      for (var j = 0; j < 2; j++) {
+        var temp = Crafty.e('2D, Canvas, Color')
+                         .color('rgb(255,0,0)')
+                         .attr({
+                            x: this._x + i * tileWidth / 3 * 2,
+                            y: this._y + j * tileHeight / 5 * 4,
+                            w: tileWidth / 3,
+                            h: tileHeight / 5,
+                            z: 9999
+                          });
+        this.attach(temp);
+      }
+    }
+
+    // Create the vertical pieces
+    for (var i = 0; i < 2; i++) {
+      for (var j = 0; j < 2; j++) {
+        var temp = Crafty.e('2D, Canvas, Color')
+                         .color('rgb(255,0,0)')
+                         .attr({
+                           x: this._x + i * tileWidth / 5 * 4,
+                           y: this._y + j * tileHeight / 3 * 2,
+                           w: tileWidth / 5,
+                           h: tileHeight / 3,
+                           z: 9999
+                         });
+        this.attach(temp);
+      }
+    }
+  },
+
+  setBlockAlpha: function (al) {
+    if (al === undefined) {
+      return this._alpha;
+    } else {
+      this._alpha = al;
+      for (var i = 0; i < this._children.length; i++) {
+        this._children[i].attr({alpha: al});
+      }
+      return this;
+    }
+  }
+});
+
 // Visual Effects Components
 Crafty.c('Blinker', {
   init: function () {
@@ -856,27 +924,41 @@ Crafty.c('StatusText', {
     this.statusText = [];
     this.realText = [];
     this.moveY = 16;
+    this._fontSize = 16;
     this.attr({
       x: 0,
       y: 0,
-      w: 10,
-      h: 10,
+      w: 20,
+      h: 20,
+      z: 9999,
       alpha: 0
     });
   },
 
-  setVisible: function (vis) {
+  setFontSize: function (size) {
+    this._fontSize = size;
+    return this;
+  },
+
+  sgVisible: function (vis) {
+    console.log('setting realtext visibility');
     for (var i = 0; i < this.statusText.length; i++) {
-      this.realText[i].attr({alpha: (vis ? 1 :0)});
+      this.realText[i].setTxtAlpha(vis ? 1 :0);
     }
     this.attr({alpha: (vis ? 1 : 0)});
     return this;
   },
 
   updateRealText: function () {
+    console.log('REALTEXT UPDATE');
     // Make more textfields if insufficient
     // Else just make them invisible
     var diff = this.statusText.length - this.realText.length;
+    console.log('statusText');
+    console.log(this.statusText);
+    console.log('realText');
+    console.log(this.realText);
+    console.log('diff = '+diff);
     if (diff > 0) {
       // insufficient textfields
       for (var i = 0; i < diff; i++) {
@@ -888,18 +970,29 @@ Crafty.c('StatusText', {
                            w: this._w,
                            h: this._h,
                            alpha: this._alpha
-                         });
+                         })
+                         .limit(50)
+                         .setFontSize(this._fontSize)
+                         .setMode(false);
         this.realText.push(temp);
       }
     } else if (diff < 0) {
       // Too many textfields
-      for (var i = this.realText.length + diff - 1; i < this.realText.length; i++) {
-        this.realText[i].attr({alpha: 0});
+      for (var i = this.realText.length + diff; i < this.realText.length; i++) {
+        this.realText[i].setWord('').attr({alpha: 0});
       }
     }
     for (var i = 0; i < this.statusText.length; i++) {
+      var str = '';
+      // If the status is blank, just display the value
+      if (this.statusText[i].status === '') {
+        str =  this.statusText[i].value;
+      } else {
+        str = this.statusText[i].status+' : '+this.statusText[i].value;
+      }
       this.realText[i]
-          .setWord(this.statusText[i].status+' : '+this.statusText[i].value)
+          .setWord(str)
+          .setFontSize(this._fontSize)
           .attr({
             x: this._x,
             y: this._y + this.moveY * i
@@ -913,7 +1006,7 @@ Crafty.c('StatusText', {
     return this;
   },
 
-  putStatus: function (status, val) {
+  putStatus: function (stat, val) {
     for (var i = 0; i < this.statusText.length; i++) {
       if (this.statusText[i].status === status) {
         this.statusText[i].value = val;
@@ -921,7 +1014,7 @@ Crafty.c('StatusText', {
         return this;
       }
     }
-    this.statusText.push({status: status, value: val});
+    this.statusText.push({status: stat, value: val});
     this.updateRealText();
     return this;
   },
@@ -951,7 +1044,7 @@ Crafty.c('MainText', {
     this.charLimit = 100;
     this._fontSize = 16;
     this.startY = Crafty.viewport.height - this._fontSize * 3;
-    this.startX = 10;
+    this.startX = 20;
     this.moveY = this._fontSize;
     this.bind('SendMainText', function (text) {
       this.append(text);
@@ -976,7 +1069,7 @@ Crafty.c('MainText', {
                             z: 9999,
                             alpha: 0
                           })
-                         .setFontSize(12)
+                         .setFontSize(this._fontSize)
                          .limit(this.charLimit)
                          .setWord(str);
         newSentences.push(temp);
@@ -993,7 +1086,7 @@ Crafty.c('MainText', {
                     z: 9999,
                     alpha: 0
                   })
-                 .setFontSize(12)
+                 .setFontSize(this._fontSize)
                  .limit(this.charLimit)
                  .setWord(str);
     newSentences.push(temp);
