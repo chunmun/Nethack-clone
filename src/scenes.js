@@ -2,7 +2,7 @@
  * Loading Scene in the Game
  */
 Crafty.scene('Loading', function() {
-  Crafty.background('rgb(0,0,0)');
+  Crafty.background('rgb(100,100,100)');
   var loadingText = Crafty.e("2D, DOM, Text")
       .attr({w: 500, h: 20, x: ((Crafty.viewport.width) / 2), y: (Crafty.viewport.height / 2), z: 2})
       .text('Loading ...')

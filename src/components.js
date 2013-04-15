@@ -848,6 +848,68 @@ Crafty.c('Blinker', {
   }
 });
 
+Crafty.c('StatusText', {
+  init: function () {
+    this.requires('2D, Canvas');
+    this.statusText = [];
+    this.realText = [];
+    this.attr({
+      x: 0,
+      y: 0,
+      w: 10,
+      h: 10,
+      alpha: 0
+    });
+  },
+
+  setVisible: function (vis) {
+    for (var i = 0; i < this.realText.length; i++) {
+      this.realText[i].attr({alpha: (vis ? 1 :0)});
+    }
+    return this;
+  },
+
+  updateRealText: function () {
+
+  }
+
+  flush: function () {
+    this.statusText = [];
+    this.updateRealText();
+    return this;
+  }
+
+  putStatus: function (status, val) {
+    for (var i = 0; i < this.statusText.length; i++) {
+      if (this.statusText[i].status === status) {
+        this.statusText[i].value = val;
+        this.updateRealText();
+        return this;
+      }
+    }
+    this.statusText.push({status: status, value: val});
+    this.updateRealText();
+    return this;
+  },
+
+  removeStatus: function (status) {
+    var temp = [];
+    for (var i = 0; i < this.statusText.length; i++) {
+      var stat = this.statusText.shift();
+      if (stat.status === status) {
+        this.statusText = temp.concat(this.statusText);
+        this.updateRealText();
+        return this;
+      } else {
+        temp.push(stat);
+      }
+    }
+    this.statusText = temp;
+    this.updateRealText();
+    return this;
+  }
+});
+
 Crafty.c('MainText', {
   init: function () {
     this.sentences = [];
