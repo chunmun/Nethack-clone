@@ -211,12 +211,12 @@ Crafty.c('Player', {
         })
         .color('rgb(255,0,0)');
     this.setLivingName('Chunmun');
-    this.role = this.roleAll.ARCHEOLOGIST;
-    this.race = this.raceAll.HUMAN;
-    this.gender = this.genderAll.MALE;
+    this.role;
+    this.race;
+    this.gender;
     this.alignment = this.alignmentAll.CHAOTIC;
     this.exp = 0;
-    this.weapon = Game.ITEMS.weapons.BARE_HANDS,
+    this.weapon;
     this.inventory = {
       amulets: [],
       food: [],
@@ -243,6 +243,7 @@ Crafty.c('Player', {
       data.race = this.race;
       data.gender = this.gender;
       data.alignment = this.alignment;
+      data.weapon = this.weapon;
       data.exp = this.exp;
       data.inventory = this.inventory;
       data.at = this.at();
@@ -253,47 +254,65 @@ Crafty.c('Player', {
       this.race = data.race;
       this.gender = data.gender;
       this.alignment = data.alignment;
+      this.weapon = data.weapon;
       this.exp = data.exp;
       this.inventory = data.inventory;
       this.at(data.at.x,data.at.y);
       this._globalZ = 99999;
     });
 
-    this.generateFightText();
   },
 
   setRace: function (letter) {
-    for (var i = 0; i < this.raceAll.length; i++) {
-      if (this.raceAll[i].letter === letter.toLowerCase()) {
-        this.race = this.raceAll[i];
+    for (var r in this.raceAll) {
+      if (this.raceAll[r].letter.toLowerCase() === letter.toLowerCase()) {
+        this.race = this.raceAll[r];
         break;
       }
     }
+    return this;
   },
 
   setRole: function (letter) {
-    for (var i = 0; i < this.roleAll.length; i++) {
-      if (this.roleAll[i].letter === letter.toLowerCase()) {
-        this.role = this.roleAll[i];
+    for (var r in this.roleAll) {
+      if (this.roleAll[r].letter.toLowerCase() === letter.toLowerCase()) {
+        this.role = this.roleAll[r];
         break;
       }
     }
+    this.weapon = this.role.weapon;
+    this.damage = this.weapon.damage;
+    this.generateFightText();
+    return this;
   },
 
   setGender: function (letter) {
-    for (var i = 0; i < this.genderAll.length; i++) {
-      if (this.genderAll[i].letter === letter.toLowerCase()) {
-        this.gender = this.genderAll[i];
+    for (var gender in this.genderAll) {
+      if (this.genderAll[gender].letter.toLowerCase() === letter.toLowerCase()) {
+        this.gender = this.genderAll[gender];
         break;
       }
     }
+    return this;
   },
 
   generateFightText: function () {
     this.fightText = function (monster) {
-      return 'You boxed the '+ monster.setLivingName()+' with your burly bare hands for '+this.damage+' dmg';
+      return 'You '+this.weapon.verb+' the '+ monster.setLivingName()+' with your '+this.weapon.name+' for '+this.damage+' dmg';
     };
   },
+
+  setWeapon: function (weaponName) {
+    for (var i in Game.ITEMS.weapons) {
+      if (weaponName === i.name) {
+        this.weapon = Game.ITEMS.weapons[i];
+        break;
+      }
+    }
+    this.damage = this.weapon.damage;
+    this.generateFightText();
+    return this;
+  }
 });
 
 
@@ -504,7 +523,7 @@ Crafty.c('Textfield', {
     this._txt = Crafty.e('2D, Canvas, Text, Tween')
                       .textColor('#FFFFFF', 1);
 
-    if (this._word) {
+    if (this._word.slice) {
       this._txt.text(this._word.slice(shown))
     }
 
@@ -942,7 +961,9 @@ Crafty.c('StatusText', {
 
   sgVisible: function (vis) {
     for (var i = 0; i < this.statusText.length; i++) {
-      this.realText[i].setTxtAlpha(vis ? 1 :0);
+      console.log('setting the value of textField to '+(vis ? 1 : 0));
+      this.realText[i].setTxtAlpha((vis ? 1 :0));
+      console.log(this.realText[i]);
     }
     this.attr({alpha: (vis ? 1 : 0)});
     return this;
@@ -978,11 +999,13 @@ Crafty.c('StatusText', {
     for (var i = 0; i < this.statusText.length; i++) {
       var str = '';
       // If the status is blank, just display the value
+      console.log('words here are :'+this.statusText[i].status+' : '+this.statusText[i].value);
       if (this.statusText[i].status === '') {
         str =  this.statusText[i].value;
       } else {
         str = this.statusText[i].status+' : '+this.statusText[i].value;
       }
+      console.log('setting word for status to '+str);
       this.realText[i]
           .setWord(str)
           .setFontSize(this._fontSize)
@@ -1000,14 +1023,18 @@ Crafty.c('StatusText', {
   },
 
   putStatus: function (stat, val) {
+    console.log('input for putStatus : '+stat+' : '+val);
     for (var i = 0; i < this.statusText.length; i++) {
-      if (this.statusText[i].status === status) {
+      if (this.statusText[i].status === stat) {
         this.statusText[i].value = val;
         this.updateRealText();
+        console.log('updated an old status: '+this.statusText[i].status+' : '+this.statusText[i].value);
         return this;
       }
     }
     this.statusText.push({status: stat, value: val});
+    var l = this.statusText.length;
+    console.log('pushed in a new status: '+this.statusText[l-1].status+' : '+this.statusText[l-1].value);
     this.updateRealText();
     return this;
   },
@@ -1104,7 +1131,6 @@ Crafty.c('MainText', {
       // move every sentence up
       this.sentences.push(newSentences[i]);
       newSentences[i]._txt.attr({alpha: 1});
-      // newSentences[i].setAlpha(1);
 
       for (var j = 0; j < this.sentences.length; j++) {
         this.sentences[j].attr({y: this.startY - (this.lineLimit - j) * this.moveY});

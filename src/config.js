@@ -56,19 +56,19 @@ Game.config = (function() {
       visibleRange: 5,
 
       roles: {
-        ARCHEOLOGIST: {name: 'Archeologist', letter: 'a'},
-        BARBARIAN: {name: 'Barbarian', letter: 'b'},
-        CAVEMAN: {name: 'Caveman', letter: 'c'},
-        HEALER: {name: 'Healer', letter: 'h'},
-        KNIGHT: {name: 'Knight', letter: 'k'},
-        MONK: {name: 'Monk', letter: 'm'},
-        PRIEST: {name: 'Priest', letter: 'p'},
-        ROGUE: {name: 'Rogue', letter: 'r'},
-        RANGER: {name: 'Ranger', letter: 'g'},
-        SAMURAI: {name: 'Samurai', letter: 's'},
-        TOURIST: {name: 'Tourist', letter: 't'},
-        VALKYRIE: {name: 'Valkyrie', letter: 'v'},
-        WIZARD: {name: 'Wizard', letter: 'w'}
+        ARCHEOLOGIST: {name: 'Archeologist', letter: 'a', weapon: Game.ITEMS.weapons.RUSTY_SPADE},
+        BARBARIAN: {name: 'Barbarian', letter: 'b', weapon: Game.ITEMS.weapons.STONE_AXE},
+        CAVEMAN: {name: 'Caveman', letter: 'c', weapon: Game.ITEMS.weapons.WOODEN_CLUB},
+        HEALER: {name: 'Healer', letter: 'h', weapon: Game.ITEMS.weapons.BARE_HANDS},
+        KNIGHT: {name: 'Knight', letter: 'k', weapon: Game.ITEMS.weapons.RUSTY_SWORD},
+        MONK: {name: 'Monk', letter: 'm', weapon: Game.ITEMS.weapons.BARE_HANDS},
+        PRIEST: {name: 'Priest', letter: 'p', weapon: Game.ITEMS.weapons.BARE_HANDS},
+        ROGUE: {name: 'Rogue', letter: 'r', weapon: Game.ITEMS.weapons.RUSTY_DAGGER},
+        RANGER: {name: 'Ranger', letter: 'g', weapon: Game.ITEMS.weapons.WOODEN_BOW},
+        SAMURAI: {name: 'Samurai', letter: 's', weapon: Game.ITEMS.weapons.RUSTY_KATANA},
+        TOURIST: {name: 'Tourist', letter: 't', weapon: Game.ITEMS.weapons.CAMERA},
+        VALKYRIE: {name: 'Valkyrie', letter: 'v', weapon: Game.ITEMS.weapons.RUSTY_SWORD},
+        WIZARD: {name: 'Wizard', letter: 'w', weapon: Game.ITEMS.weapons.WOODEN_STAFF}
       },
 
       genders: {

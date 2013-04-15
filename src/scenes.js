@@ -409,6 +409,7 @@ Crafty.scene('GameMain', function () {
                              .attr({
                               x: 20,
                               y: 20,
+                              alpha: 1
                              });
 
   var lookTarget = Crafty.e('Target')
@@ -1055,7 +1056,7 @@ Crafty.scene('DeathScene', function () {
       .setMode(false)
       .setWord('You have died');
 
-  var mainText = Crafty.e('MainText');
+  var mainText = Crafty.e('MainText')
                        .attr({
                         x: 10,
                         y: 10,
