@@ -923,13 +923,13 @@ Crafty.c('StatusText', {
     this.requires('2D, Canvas');
     this.statusText = [];
     this.realText = [];
-    this.moveY = 16;
+    this.moveY = 20;
     this._fontSize = 16;
     this.attr({
       x: 0,
       y: 0,
       w: 20,
-      h: 20,
+      h: 30,
       z: 9999,
       alpha: 0
     });
@@ -941,7 +941,6 @@ Crafty.c('StatusText', {
   },
 
   sgVisible: function (vis) {
-    console.log('setting realtext visibility');
     for (var i = 0; i < this.statusText.length; i++) {
       this.realText[i].setTxtAlpha(vis ? 1 :0);
     }
@@ -950,15 +949,9 @@ Crafty.c('StatusText', {
   },
 
   updateRealText: function () {
-    console.log('REALTEXT UPDATE');
     // Make more textfields if insufficient
     // Else just make them invisible
     var diff = this.statusText.length - this.realText.length;
-    console.log('statusText');
-    console.log(this.statusText);
-    console.log('realText');
-    console.log(this.realText);
-    console.log('diff = '+diff);
     if (diff > 0) {
       // insufficient textfields
       for (var i = 0; i < diff; i++) {
@@ -1065,7 +1058,7 @@ Crafty.c('MainText', {
                             x: this.startX,
                             y: this.startY,
                             w: this.charLimit,
-                            h: 24,
+                            h: 30,
                             z: 9999,
                             alpha: 0
                           })

@@ -389,7 +389,6 @@ var placeRoom = function (floor, room) {
  * The main game
  */
 Crafty.keys.SEMICOLON = 186;
-var keyBindings;
 
 Crafty.scene('GameMain', function () {
   var level = 1;
@@ -704,8 +703,6 @@ Crafty.scene('GameMain', function () {
       // Check if we're close enough to move towards the player
       if (distToPlayer <= monster.visibleRange()) {
         var nextMove = getMonsterNextMove(monster);
-        console.log(monster.livingName + ' has move chance '+monster.sgMoveChance());
-        console.log(monster);
         if(Math.random() <= monster.moveChance) {
           moveThing(monster, nextMove.x, nextMove.y);
         }
@@ -863,8 +860,9 @@ Crafty.scene('GameMain', function () {
       var thing = gameEntityFloor[x][y].livingThing();
       if (thing.__c.Monster) { // this is a monster
         targetStatText.putStatus('Monster', thing.livingName);
+        targetStatText.putStatus('dmg',thing.damage);
       } else if (thing.__c.Player) { // this is a player
-        targetStatText.putStatus('',player.gender.name+player.race.name+player.role.name)
+        targetStatText.putStatus('',player.gender.name+' '+player.race.name+' '+player.role.name)
       }
     }
 
@@ -1042,7 +1040,6 @@ Crafty.scene('GameMain', function () {
   }));
 
 }, function () {
-  Crafty.unbind('KeyDown', keyBindings);
 });
 
 
@@ -1057,6 +1054,18 @@ Crafty.scene('DeathScene', function () {
       })
       .setMode(false)
       .setWord('You have died');
+
+  var mainText = Crafty.e('MainText');
+                       .attr({
+                        x: 10,
+                        y: 10,
+                        w: Crafty.viewport.width - 10,
+                        h: Crafty.viewport.height - 10,
+                        alpha: 0
+                       });
+
+  // Generate the death text
+  mainText.append();
 }, function () {
 
 });
