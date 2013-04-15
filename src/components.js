@@ -81,14 +81,16 @@ Crafty.c('MonsterTypes', {
         damage: 1,
         maxHp: 3,
         fightText: ['newt bites your hand', 'newt bites your leg'],
-        color: 'rgb(250,250,0)'
+        color: 'rgb(250,250,0)',
+        moveChance: 0.6
       },
       JACKAL: {
         livingName: 'jackal',
         damage: 2,
         maxHp: 5,
         fightText: ['jackal rips you', 'jackal claws you'],
-        color: 'rgb(100,0,100)'
+        color: 'rgb(100,0,100)',
+        moveChance: 0.8
       }
     };
   }
@@ -101,6 +103,7 @@ Crafty.c('Monster', {
       .attr({w: 10, h: 10, z: 9999});
     this.setType('newt');
     this.monsterType;
+    this.moveChance;
   },
 
   setType: function (newtype) {
@@ -110,12 +113,25 @@ Crafty.c('Monster', {
       this.monsterType = this.monsterAll[newtype.toUpperCase()];
       this.setLivingName(this.monsterType.livingName);
       this.fightText = function () {
-        return this.monsterType.fightText[Math.floor(Math.random()*(this.monsterType.fightText.length-1))];
+        return this.monsterType.fightText[Math.floor(Math.random()*(this.monsterType.fightText.length))];
       };
+      console.log('this.monsterType: ');
+      console.log(this.monsterType);
+      this.moveChance = this.monsterType.moveChance;
+      console.log(this.moveChance);
       this.color(this.monsterType.color);
       this.maxHp = this.monsterType.maxHp;
       this.hp = this.maxHp;
       this.damage = this.monsterType.damage;
+      return this;
+    }
+  },
+
+  sgMoveChance: function (chance) {
+    if (chance === undefined) {
+      return this.moveChance;
+    } else {
+      this.moveChance = chance;
       return this;
     }
   }
@@ -630,9 +646,7 @@ Crafty.c('Controls', {
           break;
         case Crafty.keys.COMMA: // For picking up stuff on ground
           if (e.shiftKey) {
-            generateGameLevel();
-            loadGameLevel();
-            updateVisibility();
+            Crafty.trigger('PlayerStaircase', 'down');
           }
         break;
         case Crafty.keys.P: // For putting on stuff other than armour
@@ -655,24 +669,11 @@ Crafty.c('Controls', {
         // Search can discover hidden doors, stuff, monsters
         // If done with shift-key then its a save, reload using name;
           if (e.shiftKey) {
-            var gameFloorMod = [];
-            for (var i = 0; i < gameFloor.length; i++) {
-              gameFloorMod[i] = [];
-              for (var j = 0; j < gameFloor[i].length; j++) {
-                gameFloorMod[i][j] = gameFloor[i][j];
-                if (gameEntityFloor[i][j]._sighted) {
-                  gameFloorMod[i][j] += 999;
-                }
-              }
-            }
-            Crafty.storage.save(player.livingName+'gameFloor','save',gameFloorMod);
-            Crafty.storage.save(player.livingName,'save',player);
-            console.log('Saved to '+player.livingName);
+            Crafty.trigger('SaveGame');
           }
         break;
         case Crafty.keys.L:
           if (e.shiftKey) {
-            loadGame();
           }
         break;
         case Crafty.keys.Z: // Cast spells from a menu
@@ -683,9 +684,7 @@ Crafty.c('Controls', {
         break;
         case Crafty.keys.PERIOD: // Move to next level with shift-key
           if (e.shiftKey) {
-            generateGameLevel();
-            loadGameLevel();
-            updateVisibility();
+            Crafty.trigger('PlayerStaircase', 'up');
           }
         break;
         case Crafty.keys.ESC: // Escapes the situation
@@ -707,14 +706,13 @@ Crafty.c('Controls', {
   setMonsters: function (monsters) {
     this._monsters = monsters;
   }
-
-
 });
 
 Crafty.c('Blackout', {
   init: function () {
     this.nextScene = 'Intro';
-    this.requires('2D, Canvas, Color, Tween')
+    this.changed = false;
+    this.requires('2D, Canvas, Color, Tween, Persist')
       .attr({
         x: 0,
         y: 0,
@@ -727,10 +725,14 @@ Crafty.c('Blackout', {
       .bind('blackOut', function () {
         this.tween({alpha: 1.0}, 30)
             .bind('TweenEnd', function () {
-              this.tween({alpha: 0}, 20)
-              Crafty.scene(this.nextScene);
-              if (this._alpha === 0) {
+              if (this.changed) {
                 this.destroy();
+              } else {
+                if (!this.changed) {
+                  Crafty.scene(this.nextScene);
+                  this.tween({alpha: 0}, 20)
+                  this.changed = true;
+                }
               }
             });
       });
@@ -853,6 +855,7 @@ Crafty.c('StatusText', {
     this.requires('2D, Canvas');
     this.statusText = [];
     this.realText = [];
+    this.moveY = 16;
     this.attr({
       x: 0,
       y: 0,
@@ -863,21 +866,52 @@ Crafty.c('StatusText', {
   },
 
   setVisible: function (vis) {
-    for (var i = 0; i < this.realText.length; i++) {
+    for (var i = 0; i < this.statusText.length; i++) {
       this.realText[i].attr({alpha: (vis ? 1 :0)});
     }
+    this.attr({alpha: (vis ? 1 : 0)});
     return this;
   },
 
   updateRealText: function () {
-
-  }
+    // Make more textfields if insufficient
+    // Else just make them invisible
+    var diff = this.statusText.length - this.realText.length;
+    if (diff > 0) {
+      // insufficient textfields
+      for (var i = 0; i < diff; i++) {
+        var temp = Crafty.e('Textfield')
+                         .attr({
+                           x: this._x,
+                           y: this._y,
+                           z: this._z,
+                           w: this._w,
+                           h: this._h,
+                           alpha: this._alpha
+                         });
+        this.realText.push(temp);
+      }
+    } else if (diff < 0) {
+      // Too many textfields
+      for (var i = this.realText.length + diff - 1; i < this.realText.length; i++) {
+        this.realText[i].attr({alpha: 0});
+      }
+    }
+    for (var i = 0; i < this.statusText.length; i++) {
+      this.realText[i]
+          .setWord(this.statusText[i].status+' : '+this.statusText[i].value)
+          .attr({
+            x: this._x,
+            y: this._y + this.moveY * i
+          });
+    }
+  },
 
   flush: function () {
     this.statusText = [];
     this.updateRealText();
     return this;
-  }
+  },
 
   putStatus: function (status, val) {
     for (var i = 0; i < this.statusText.length; i++) {
@@ -916,7 +950,7 @@ Crafty.c('MainText', {
     this.lineLimit = 6;
     this.charLimit = 100;
     this._fontSize = 16;
-    this.startY = Crafty.viewport.height - this._fontSize * 2;
+    this.startY = Crafty.viewport.height - this._fontSize * 3;
     this.startX = 10;
     this.moveY = this._fontSize;
     this.bind('SendMainText', function (text) {
@@ -964,6 +998,12 @@ Crafty.c('MainText', {
                  .setWord(str);
     newSentences.push(temp);
     return newSentences;
+  },
+
+  flush: function () {
+    for (var i = 0; i < this.lineLimit; i++) {
+      this.append('');
+    }
   },
 
   append: function (word) {

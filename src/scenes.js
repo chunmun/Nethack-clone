@@ -2,7 +2,8 @@
  * Loading Scene in the Game
  */
 Crafty.scene('Loading', function() {
-  Crafty.background('rgb(100,100,100)');
+  // Crafty.background('rgb(100,100,100)');
+  Crafty.background('rgb(0,0,0)');
   var loadingText = Crafty.e("2D, DOM, Text")
       .attr({w: 500, h: 20, x: ((Crafty.viewport.width) / 2), y: (Crafty.viewport.height / 2), z: 2})
       .text('Loading ...')
@@ -14,7 +15,7 @@ Crafty.scene('Loading', function() {
   // Crafty.load(assets, function() {
   //   console.log('Game Assets Loaded');
   // });
-  Crafty.e('Player, Persist').attr({alpha:0});
+  Crafty.e('Player').attr({alpha:0});
   Crafty.scene('StartSplash');
 }, function() {
 
@@ -26,7 +27,7 @@ Crafty.scene('Loading', function() {
  * Start Splash Scene
  */
 
-var blackFun;
+// var blackFun;
 Crafty.scene('StartSplash', function() {
   var StartText = Crafty.e("2D, Canvas, Text")
       .attr({
@@ -41,12 +42,12 @@ Crafty.scene('StartSplash', function() {
       .textFont({'size' : '24px', 'family': Game.config.font});
 
   var blackout = Crafty.e('Blackout');
-  blackFun = function() {
-    Crafty.trigger('blackOut');
-  };
-  this.bind('KeyDown', blackFun);
+  // blackFun = function() {
+  //   Crafty.trigger('blackOut');
+  // };
+  this.bind('KeyDown', function () {Crafty.trigger('blackOut');});
 }, function() {
-  Crafty.unbind('KeyDown', blackFun);
+  // Crafty.unbind('KeyDown', blackFun);
 });
 
 
@@ -69,7 +70,7 @@ Crafty.scene('Intro', function () {
   var frames = [
     {text: 'What is your name ?', next:1, response: 'word',
      wordFun: function (word) {
-       Crafty('Player, Persist').setLivingName(word);
+       Crafty('Player').setLivingName(word);
        Crafty.e('Textfield').attr({
         x: Game.config.canvasWidth / 3,
         y: Game.config.canvasHeight / 3 + 35,
@@ -80,17 +81,17 @@ Crafty.scene('Intro', function () {
     {text: 'What is your gender ?', next:2, response: 'letter',
      possible: extractField(Game.config.player.genders, 'letter'),
      options: Game.config.player.genders,
-     wordFun: function (word) {Crafty('Player, Persist').setGender(word);
+     wordFun: function (word) {Crafty('Player').setGender(word);
     }},
     {text: 'What is your race ?', next:3, response: 'letter',
      possible: extractField(Game.config.player.races, 'letter'),
      options: Game.config.player.races,
-     wordFun: function (word) {Crafty('Player, Persist').setRace(word);
+     wordFun: function (word) {Crafty('Player').setRace(word);
     }},
     {text: 'What is your role?', next:4, response: 'letter',
      possible: extractField(Game.config.player.roles, 'letter'),
      options: Game.config.player.roles,
-     wordFun: function (word) {Crafty('Player, Persist').setRole(word);
+     wordFun: function (word) {Crafty('Player').setRole(word);
     }},
   ];
 
@@ -394,7 +395,7 @@ Crafty.scene('GameMain', function () {
   var gameFloor;
   var gameEntityFloor;
   var monsters = [];
-  var player = Crafty('Player, Persist');
+  var player = Crafty('Player').attr({alpha: 0});
   var items;
   var floors = Game.config.floor;
   var map = Game.config.map;
@@ -409,6 +410,7 @@ Crafty.scene('GameMain', function () {
         loadGame(function () {
           player.attr({alpha: 1});
           updateVisibility();
+          mainText.flush();
         });
         found = true;
         break;
@@ -420,7 +422,7 @@ Crafty.scene('GameMain', function () {
       spawnMonsters(gameFloor);
       player.attr({alpha:1});
       updateVisibility();
-      mainText.append('Load Done');
+      mainText.flush();
     }
     gameEntityFloor[player.at().x][player.at().y].livingThing(player);
   });
@@ -518,6 +520,12 @@ Crafty.scene('GameMain', function () {
   }; //loadGameLevel
 
   var spawnMonsters = function(floor) {
+    // Clear the existing monsters
+    for (var i = 0; i < monsters.length; i++) {
+      monsters[i].destroy();
+    }
+    monsters = [];
+
     var possible = [];
     for (var i = 0; i < map.width; i++) {
       for (var j = 0; j < map.height; j++) {
@@ -531,7 +539,7 @@ Crafty.scene('GameMain', function () {
     for (var i = 0; i < Game.config.monster.maxLimit; i++) {
       var monster = Crafty.e('Monster')
                           .at(possible[i].x, possible[i].y)
-                          .attr({alpha: 1});
+                          .attr({alpha: 0});
       monsters.push(monster);
       gameEntityFloor[possible[i].x][possible[i].y].livingThing(monster);
     }
@@ -585,41 +593,11 @@ Crafty.scene('GameMain', function () {
 
 
   var getMonsterNextMove = function (monster) {
-    // var arr2 = [];
-    // var arr = [];
-    // for (var i = 0; i < monster.visibleRange() * 2 + 1; i++) {
-    //   arr[i] = [];
-    //   arr2[i] = [];
-    //   for (var j = 0; j < monster.visibleRange() *2 + 1; j++) {
-    //     arr[i][j] = 0;
-    //     arr2[i][j] = 0;
-    //   }
-    // }
-    // function mark(x, y, val) {
-    //   var x = x - monster.at().x + monster.visibleRange();
-    //   var y = y - monster.at().y + monster.visibleRange();
-    //   if (arr[x][y] != 5) {
-    //     arr[x][y] = val;
-    //   }
-    // }
-    // function printArr() {
-    //   for (var i = 0; i < arr.length; i++) {
-    //     for (var j = 0; j < arr[i].length; j++) {
-    //       arr2[i][j] = arr[j][i]
-    //     }
-    //   }
-    //   console.log('arr(transpose): ');
-    //   for (var i = 0; i < arr.length; i++) {
-    //     console.log(arr2[i]);
-    //   }
-    // }
     // Will only try up to a distance of 2 * visibleRange
     // If no viable route is found, just keep still
     var newX = monster.at().x;
     var newY = monster.at().y;
-    // mark(newX, newY, 5);
 
-    // var frontier = [];
     var explored = [];
     var found = false;
 
@@ -645,12 +623,10 @@ Crafty.scene('GameMain', function () {
 
     while (frontier.size() !== 0) {
       var curr = frontier.pop();
-      // mark(curr.x,curr.y,1);
       if (!withinGameBound(curr.x, curr.y) ||
           curr.distMon > monster.visibleRange * 2 ||
           isIn(curr, explored)) continue;
       if (!floorPassible(curr.x, curr.y)) {
-        // mark(curr.x,curr.y,2);
         continue;
       }
       if (curr.distPlayer === 1) {
@@ -668,16 +644,13 @@ Crafty.scene('GameMain', function () {
     // Backtracking
     if (found) {
       while (found.parent !== null) {
-        // mark(found.x,found.y,3);
         found = found.parent;
       }
       if (passible(found.x, found.y)) {
         newX = found.x;
         newY = found.y;
-        // mark(newX,newY,4);
       }
     }
-    // printArr();
     return {x: newX, y: newY};
   }
 
@@ -702,7 +675,11 @@ Crafty.scene('GameMain', function () {
       // Check if we're close enough to move towards the player
       if (distToPlayer <= monster.visibleRange()) {
         var nextMove = getMonsterNextMove(monster);
-        moveThing(monster, nextMove.x, nextMove.y);
+        console.log(monster.livingName + ' has move chance '+monster.sgMoveChance());
+        console.log(monster);
+        if(Math.random() <= monster.moveChance) {
+          moveThing(monster, nextMove.x, nextMove.y);
+        }
         continue;
       }
 
@@ -837,9 +814,19 @@ Crafty.scene('GameMain', function () {
   var checkDeath = function () {
     if (player.hp <= 0) {
       player.attr({alpha: 0});
-      Crafty.scene('DeathScene');
+      controls.destroy();
+      Crafty.e('Textfield')
+            .attr({
+              x: Crafty.viewport.width / 3 + 20,
+              y: Crafty.viewport.height / 2,
+              w: 10,
+              h: 10
+            })
+            .setMode(false)
+            .setWord('You have died');
+      Crafty.e('Blackout').setNextScene('DeathScene');
     }
-  }
+  } // checkDeath
 
   var appendRandomText = function (textArr) {
     var i = Math.floor(Math.random() * (textArr.length - 1));
@@ -852,6 +839,35 @@ Crafty.scene('GameMain', function () {
     var rel = {x: player.at().x + delta.x, y: player.at().y + delta.y};
     return rel;
   }
+
+  actions.push(this.bind('PlayerStaircase', function (dir) {
+    if ((dir === 'down' &&
+         gameFloor[player.at().x][player.at().y] === floors.STAIRCASE_DOWN) ||
+        (dir === 'up' &&
+         gameFloor[player.at().x][player.at().y] === floors.STAIRCASE_UP)) {
+      mainText.append('Moving '+dir);
+      generateGameLevel();
+      loadGameLevel();
+      spawnMonsters();
+      updateVisibility();
+    }
+  }));
+
+  actions.push(this.bind('SaveGame', function () {
+    var gameFloorMod = [];
+    for (var i = 0; i < gameFloor.length; i++) {
+      gameFloorMod[i] = [];
+      for (var j = 0; j < gameFloor[i].length; j++) {
+        gameFloorMod[i][j] = gameFloor[i][j];
+        if (gameEntityFloor[i][j]._sighted) {
+          gameFloorMod[i][j] += 999;
+        }
+      }
+    }
+    Crafty.storage.save(player.livingName+'gameFloor','save',gameFloorMod);
+    Crafty.storage.save(player.livingName,'save',player);
+    console.log('Saved to '+player.livingName);
+  }));
 
   actions.push(this.bind('PlayerOpen', function (delta) {
     var rel = getRelDelta(delta);
