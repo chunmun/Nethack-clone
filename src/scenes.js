@@ -452,6 +452,7 @@ Crafty.scene('GameMain', function () {
     if (!player) return;
     playerStatText.putStatus('', player.setLivingName());
     playerStatText.putStatus('HP', player.hp);
+    playerStatText.putStatus('EXP', player.exp);
     playerStatText.sgVisible(true);
   }
 
@@ -986,6 +987,7 @@ Crafty.scene('GameMain', function () {
 
   actions.push(this.bind('PlayerMove', function (delta) {
     var rel = getRelDelta(delta);
+    player.tickHp();
     if (passible(rel.x, rel.y)) {
       moveThing(player, rel.x, rel.y);
       updateVisibility();
@@ -1029,7 +1031,9 @@ Crafty.scene('GameMain', function () {
     var monster = gameEntityFloor[rel.x][rel.y].livingThing();
     if (monster !== undefined) {
       player.fight(monster);
+      player.resetHpGainTick();
       if (monster.hp <= 0) {
+        player.exp += monster.exp;
         monster.destroy();
         gameEntityFloor[rel.x][rel.y].removeThing();
         monsters = monsters.filter(function (mon) { return mon !== monster;});

@@ -82,6 +82,7 @@ Crafty.c('MonsterTypes', {
         maxHp: 3,
         fightText: ['newt bites your hand', 'newt bites your leg'],
         color: 'rgb(250,250,0)',
+        exp: 1,
         moveChance: 0.6
       },
       JACKAL: {
@@ -90,6 +91,7 @@ Crafty.c('MonsterTypes', {
         maxHp: 5,
         fightText: ['jackal rips you', 'jackal claws you'],
         color: 'rgb(100,0,100)',
+        exp: 2,
         moveChance: 0.8
       }
     };
@@ -104,6 +106,7 @@ Crafty.c('Monster', {
     this.setType('newt');
     this.monsterType;
     this.moveChance;
+    this.exp;
   },
 
   setType: function (newtype) {
@@ -122,6 +125,7 @@ Crafty.c('Monster', {
       this.maxHp = this.monsterType.maxHp;
       this.hp = this.maxHp;
       this.damage = this.monsterType.damage;
+      this.exp = this.monsterType.exp;
       return this;
     }
   },
@@ -217,6 +221,7 @@ Crafty.c('Player', {
     this.alignment = this.alignmentAll.CHAOTIC;
     this.exp = 0;
     this.weapon;
+    this.hpGainTick;
     this.inventory = {
       amulets: [],
       food: [],
@@ -247,6 +252,7 @@ Crafty.c('Player', {
       data.exp = this.exp;
       data.inventory = this.inventory;
       data.at = this.at();
+      data.hpGainTick = this.hpGainTick;
     })
     .bind('LoadData', function (data) {
       this.livingName = data.livingName;
@@ -259,8 +265,26 @@ Crafty.c('Player', {
       this.inventory = data.inventory;
       this.at(data.at.x,data.at.y);
       this._globalZ = 99999;
+      this.hpGainTick = data.hpGainTick;
     });
+  },
 
+  tickHp: function () {
+    if (this.hp < this.maxHp) {
+      this.hpGainTick--;
+      if (this.hpGainTick === 0) {
+        this.hp++;
+        this.resetHpGainTick();
+      }
+    } else {
+      this.resetHpGainTick();
+    }
+    return this;
+  },
+
+  resetHpGainTick: function () {
+    this.hpGainTick = this.race.hpGainTick;
+    return this;
   },
 
   setRace: function (letter) {
@@ -270,6 +294,7 @@ Crafty.c('Player', {
         break;
       }
     }
+    this.hpGainTick = this.race.hpGainTick;
     return this;
   },
 
