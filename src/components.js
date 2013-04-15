@@ -266,6 +266,7 @@ Crafty.c('Player', {
       this.at(data.at.x,data.at.y);
       this._globalZ = 99999;
       this.hpGainTick = data.hpGainTick;
+      this.generateFightText();
     });
   },
 
@@ -685,7 +686,6 @@ Crafty.c('Controls', {
         case Crafty.keys.E: // For eating food
         break;
         case Crafty.keys.SEMICOLON: // For looking around
-          console.log('calling the semicolon');
           this._currDirTrigger = this._dirTrigger.LOOK;
           Crafty.trigger(this._currDirTrigger, {x: 0, y: 0});
         break;
@@ -986,9 +986,7 @@ Crafty.c('StatusText', {
 
   sgVisible: function (vis) {
     for (var i = 0; i < this.statusText.length; i++) {
-      console.log('setting the value of textField to '+(vis ? 1 : 0));
       this.realText[i].setTxtAlpha((vis ? 1 :0));
-      console.log(this.realText[i]);
     }
     this.attr({alpha: (vis ? 1 : 0)});
     return this;
@@ -1024,13 +1022,11 @@ Crafty.c('StatusText', {
     for (var i = 0; i < this.statusText.length; i++) {
       var str = '';
       // If the status is blank, just display the value
-      console.log('words here are :'+this.statusText[i].status+' : '+this.statusText[i].value);
       if (this.statusText[i].status === '') {
         str =  this.statusText[i].value;
       } else {
         str = this.statusText[i].status+' : '+this.statusText[i].value;
       }
-      console.log('setting word for status to '+str);
       this.realText[i]
           .setWord(str)
           .setFontSize(this._fontSize)
@@ -1048,18 +1044,15 @@ Crafty.c('StatusText', {
   },
 
   putStatus: function (stat, val) {
-    console.log('input for putStatus : '+stat+' : '+val);
     for (var i = 0; i < this.statusText.length; i++) {
       if (this.statusText[i].status === stat) {
         this.statusText[i].value = val;
         this.updateRealText();
-        console.log('updated an old status: '+this.statusText[i].status+' : '+this.statusText[i].value);
         return this;
       }
     }
     this.statusText.push({status: stat, value: val});
     var l = this.statusText.length;
-    console.log('pushed in a new status: '+this.statusText[l-1].status+' : '+this.statusText[l-1].value);
     this.updateRealText();
     return this;
   },

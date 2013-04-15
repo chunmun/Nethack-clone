@@ -1,6 +1,7 @@
 /**
  * Loading Scene in the Game
  */
+var saves;
 Crafty.scene('Loading', function() {
   // Crafty.background('rgb(100,100,100)');
   Crafty.background('rgb(0,0,0)');
@@ -15,8 +16,11 @@ Crafty.scene('Loading', function() {
   // Crafty.load(assets, function() {
   //   console.log('Game Assets Loaded');
   // });
-  Crafty.e('Player').attr({alpha:0});
-  Crafty.scene('StartSplash');
+  Crafty.storage.getAllKeys('save', function (keys) {
+    saves = keys;
+    Crafty.e('Player').attr({alpha:0});
+    Crafty.scene('StartSplash');
+  });
 }, function() {
 
 });
@@ -70,13 +74,22 @@ Crafty.scene('Intro', function () {
   var frames = [
     {text: 'What is your name ?', next:1, response: 'word',
      wordFun: function (word) {
-       Crafty('Player').setLivingName(word);
-       Crafty.e('Textfield').attr({
-        x: Game.config.canvasWidth / 3,
-        y: Game.config.canvasHeight / 3 + 35,
-        w: 10,
-        h: 10
-       }).setMode(false).setWord(input);
+      Crafty('Player').setLivingName(word);
+      Crafty.e('Textfield').attr({
+       x: Game.config.canvasWidth / 3,
+       y: Game.config.canvasHeight / 3 + 35,
+       w: 10,
+       h: 10
+      }).setMode(false).setWord(input);
+
+      for (var i = 0; i < saves.length; i++) {
+        if (saves[i] === input) {
+          Crafty('Textfield').destroy();
+          Crafty.e('Blackout')
+            .setNextScene('GameMain');
+          break;
+        }
+      }
     }},
     {text: 'What is your gender ?', next:2, response: 'letter',
      possible: extractField(Game.config.player.genders, 'letter'),
@@ -166,6 +179,11 @@ Crafty.scene('Intro', function () {
               }
               frameNum = frames[frameNum].next;
               this.setWord('');
+
+              // Check if the player's name is a match
+              console.log(saves);
+              var found = false;
+
               Crafty.trigger('ChangeFrame', frameNum);
             }
           } else if (frames[frameNum].response === 'letter') {
@@ -422,32 +440,6 @@ Crafty.scene('GameMain', function () {
                               y: 20
                              });
 
-  Crafty.storage.getAllKeys('save', function (keys) {
-    var found = false;
-    for (var i = 0; i < keys.length; i++) {
-      if (keys[i] === player._name) {
-        loadGame(function () {
-          player.attr({alpha: 1});
-          loadPlayerStatusText();
-          updateVisibility();
-          mainText.flush();
-        });
-        found = true;
-        break;
-      }
-    }
-    if (!found) {
-      generateGameLevel();
-      loadGameLevel();
-      spawnMonsters(gameFloor);
-      player.attr({alpha:1});
-      updateVisibility();
-      loadPlayerStatusText();
-      mainText.flush();
-    }
-    gameEntityFloor[player.at().x][player.at().y].livingThing(player);
-  });
-
   var loadPlayerStatusText = function () {
     if (!player) return;
     playerStatText.putStatus('', player.setLivingName());
@@ -603,9 +595,9 @@ Crafty.scene('GameMain', function () {
   }; // reloadGame
 
   var loadGame = function (cb) {
-    Crafty.storage.load(player._name+'gameFloor','save',function (data) {
+    Crafty.storage.load(player.livingName+'gameFloor','save',function (data) {
       reloadGame(data);
-      Crafty.storage.load(player._name,'save',function(p) {
+      Crafty.storage.load(player.livingName,'save',function(p) {
         player.destroy();
         player = p;
         updateVisibility();
@@ -902,6 +894,33 @@ Crafty.scene('GameMain', function () {
     }
   } // checkDeath
 
+  var found = false;
+  for (var i = 0; i < saves.length; i++) {
+    if (saves[i] === player.livingName) {
+      loadGame(function () {
+        player.attr({alpha: 1});
+        spawnMonsters(gameFloor);
+        updateVisibility();
+        loadPlayerStatusText();
+        mainText.append('Load Done');
+        gameEntityFloor[player.at().x][player.at().y].livingThing(player);
+      });
+      found = true;
+      break;
+    }
+  }
+
+  if (!found) {
+    generateGameLevel();
+    loadGameLevel();
+    spawnMonsters(gameFloor);
+    player.attr({alpha:1});
+    updateVisibility();
+    loadPlayerStatusText();
+    mainText.append('Load Done');
+    gameEntityFloor[player.at().x][player.at().y].livingThing(player);
+  }
+
   var appendRandomText = function (textArr) {
     var i = Math.floor(Math.random() * (textArr.length - 1));
     mainText.append(textArr[i]);
@@ -959,6 +978,7 @@ Crafty.scene('GameMain', function () {
   }));
 
   actions.push(this.bind('SaveGame', function () {
+    mainText.append('Saving Game...');
     var gameFloorMod = [];
     for (var i = 0; i < gameFloor.length; i++) {
       gameFloorMod[i] = [];
@@ -969,9 +989,18 @@ Crafty.scene('GameMain', function () {
         }
       }
     }
-    Crafty.storage.save(player.livingName+'gameFloor','save',gameFloorMod);
-    Crafty.storage.save(player.livingName,'save',player);
-    console.log('Saved to '+player.livingName);
+    var saved = 0;
+    Crafty.storage.save(player.livingName+'gameFloor','save',gameFloorMod, function () {
+      saved++;
+      console.log('saved left: '+saved);
+      if (saved === 2) mainText.append('Save Done');
+    });
+    Crafty.storage.save(player.livingName,'save',player, function () {
+      saved++;
+      console.log('saved left: '+saved);
+      if (saved === 2) mainText.append('Save Done');
+    });
+    // console.log('Saved to '+player.livingName);
   }));
 
   actions.push(this.bind('PlayerOpen', function (delta) {

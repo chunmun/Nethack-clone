@@ -77,11 +77,11 @@ Game.config = (function() {
       },
 
       races: {
-        HUMAN: {name: 'Human', letter: 'h', hpGainTick: 7},
-        ELF: {name: 'Elf', letter: 'e', hpGainTick: 6},
-        GNOME: {name: 'Gnome', letter: 'g', hpGainTick: 8},
-        ORC: {name: 'Orc', letter: 'o', hpGainTick: 6},
-        DWARF: {name: 'Dwarf', letter: 'd', hpGainTick: 8}
+        HUMAN: {name: 'Human', letter: 'h', hpGainTick: 14},
+        ELF: {name: 'Elf', letter: 'e', hpGainTick: 12},
+        GNOME: {name: 'Gnome', letter: 'g', hpGainTick: 16},
+        ORC: {name: 'Orc', letter: 'o', hpGainTick: 12},
+        DWARF: {name: 'Dwarf', letter: 'd', hpGainTick: 16}
       }
     }, // player
 
