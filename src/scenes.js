@@ -6,7 +6,7 @@ Crafty.scene('Loading', function() {
   // Crafty.background('rgb(100,100,100)');
   Crafty.background('rgb(0,0,0)');
   var loadingText = Crafty.e("2D, DOM, Text")
-      .attr({w: 500, h: 20, x: ((Crafty.viewport.width) / 2), y: (Crafty.viewport.height / 2), z: 2})
+      .attr({w: 500, h: 20, x: ((Crafty.viewport.width) / 3), y: (Crafty.viewport.height / 2), z: 2})
       .text('Loading ...')
       .textColor('#000')
       .textFont({'size' : '24px', 'family': Game.config.font});
@@ -942,8 +942,10 @@ Crafty.scene('GameMain', function () {
       return;
     }
     var rel = {x: dir.x + lookTarget.at().x, y: dir.y + lookTarget.at().y};
-    lookTarget.at(rel.x, rel.y);
-    generateTargetStatText();
+    if (withinGameBound(rel.x, rel.y)) {
+      lookTarget.at(rel.x, rel.y);
+      generateTargetStatText();
+    }
   }));
 
   actions.push(this.bind('ControlClear', function () {

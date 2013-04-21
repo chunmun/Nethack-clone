@@ -81,7 +81,7 @@ Crafty.c('MonsterTypes', {
         damage: 1,
         maxHp: 3,
         fightText: ['newt bites your hand', 'newt bites your leg'],
-        color: 'rgb(250,250,0)',
+        color: 'rgb(255,51,51)',
         exp: 1,
         moveChance: 0.6
       },
@@ -213,7 +213,7 @@ Crafty.c('Player', {
           h: 10,
           z: 9999999
         })
-        .color('rgb(255,0,0)');
+        .color('rgb(102,204,0)');
     this.setLivingName('Chunmun');
     this.role;
     this.race;
@@ -341,6 +341,10 @@ Crafty.c('Player', {
   }
 });
 
+
+Crafty.c('Item', {
+
+});
 
 Crafty.c('MenuButton', {
   init: function () {
